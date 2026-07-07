@@ -7,7 +7,7 @@
 import API from './api.js';
 
 const register = async (name, email, password) => {
-  const response = await API.post('/auth/register', { name, email, password });
+  const response = await API.post('/auth/register', { fullName: name, email, password });
   return response.data.data;
 };
 

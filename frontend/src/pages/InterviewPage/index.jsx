@@ -66,7 +66,9 @@ function InterviewPage() {
           setCurrentQuestion(data.questions[qIndex] || data.questions[0]);
         }
 
-        const interviewerMsgs = data.messages.filter(
+        // FIX: guard against null/undefined messages list
+        const messages = Array.isArray(data.messages) ? data.messages : [];
+        const interviewerMsgs = messages.filter(
           (m) => m.role === 'interviewer'
         );
         if (data.currentQuestion === 1 && interviewerMsgs.length >= 1) {
@@ -110,7 +112,11 @@ function InterviewPage() {
   };
 
   const processAnswerResult = (result) => {
-    if (result.isComplete) {
+    // FIX: Backend field is serialized as "isComplete" via @JsonProperty.
+    // Support both for robustness.
+    const isComplete = result.isComplete === true || result.complete === true;
+
+    if (isComplete) {
       const farewellText =
         'Thank you for completing the interview! I really enjoyed our conversation. Let me prepare your detailed feedback report...';
       setFarewellMessage(farewellText);
@@ -121,9 +127,12 @@ function InterviewPage() {
           setCurrentAudio(result.audio);
           setAudioKey((prev) => prev + 1);
         }, 100);
+        // Navigate after audio plays or after a generous delay
         setTimeout(() => handleEndInterview(), 10000);
       } else {
-        setTimeout(() => handleEndInterview(), 4000);
+        // FIX: endInterview was already called server-side on last answer;
+        // just navigate to feedback page
+        setTimeout(() => navigate(`/feedback/${id}`), 3000);
       }
       return;
     }
@@ -186,10 +195,16 @@ function InterviewPage() {
     setInterviewerState(STATE_THINKING);
     try {
       const result = await submitCode(id, code, codeLanguage);
-      setCodeEvaluation(result.evaluation);
-      toast.success(`Code evaluated: ${result.evaluation.score}/100`);
 
-      if (result.isComplete) {
+      // FIX: same isComplete robustness as processAnswerResult
+      const isComplete = result.isComplete === true || result.complete === true;
+
+      if (result.evaluation) {
+        setCodeEvaluation(result.evaluation);
+        toast.success(`Code evaluated: ${result.evaluation.score}/100`);
+      }
+
+      if (isComplete) {
         setFarewellMessage(
           'Thank you for completing the interview! I really enjoyed our conversation. Let me prepare your detailed feedback report...'
         );
@@ -199,9 +214,10 @@ function InterviewPage() {
             setCurrentAudio(result.audio);
             setAudioKey((prev) => prev + 1);
           }, 100);
-          setTimeout(() => handleEndInterview(), 10000);
+          setTimeout(() => navigate(`/feedback/${id}`), 10000);
         } else {
-          setTimeout(() => handleEndInterview(), 4000);
+          // endInterview already called server-side; just navigate
+          setTimeout(() => navigate(`/feedback/${id}`), 3000);
         }
         return;
       }
@@ -218,10 +234,15 @@ function InterviewPage() {
   const handleEndInterview = async () => {
     setEnding(true);
     try {
+      // endInterview generates & saves the feedback report
       await endInterview(id);
+      // Navigate only after the API call succeeds (feedback is saved)
       navigate(`/feedback/${id}`);
     } catch (error) {
-      toast.error('Failed to generate feedback');
+      // If endInterview fails (e.g. already completed), still try to navigate
+      // because feedback may already exist
+      console.warn('endInterview error (may already be completed):', error);
+      navigate(`/feedback/${id}`);
     } finally {
       setEnding(false);
     }

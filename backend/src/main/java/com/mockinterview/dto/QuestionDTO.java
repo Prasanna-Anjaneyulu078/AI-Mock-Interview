@@ -9,4 +9,7 @@ public class QuestionDTO {
     private String type;
     private Boolean isCodeQuestion;
     private String codeType;
+    private String codeSnippet;
+    private String codeLanguage;
 }
+

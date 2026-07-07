@@ -4,8 +4,10 @@ D:\InterviewPilot\backend\src\main\java\com\mockinterview\dto\AnswerResponse.jav
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\service\SpeechToTextService.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\controller\HistoryController.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\controller\InterviewController.java
+D:\InterviewPilot\backend\src\main\java\com\mockinterview\mapper\MessageMapper.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\mapper\UserMapper.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\dto\InterviewRequest.java
+D:\InterviewPilot\backend\src\main\java\com\mockinterview\dto\HistoryEntryDTO.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\repository\AnswerRepository.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\service\AuthService.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\entity\User.java
@@ -23,6 +25,7 @@ D:\InterviewPilot\backend\src\main\java\com\mockinterview\repository\InterviewRe
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\dto\InterviewResponse.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\service\HistoryService.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\service\GeminiService.java
+D:\InterviewPilot\backend\src\main\java\com\mockinterview\dto\MessageDTO.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\mapper\InterviewMapper.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\mapper\QuestionMapper.java
 D:\InterviewPilot\backend\src\main\java\com\mockinterview\exception\GlobalExceptionHandler.java

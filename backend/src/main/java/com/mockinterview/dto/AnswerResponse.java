@@ -1,10 +1,16 @@
 package com.mockinterview.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
 public class AnswerResponse {
-    private boolean isComplete;
+    // FIX: Lombok generates isIsComplete() for a boolean field named "isComplete",
+    // which Jackson serializes as "complete". Renaming to "complete" with an explicit
+    // @JsonProperty("isComplete") ensures the frontend receives "isComplete": true/false.
+    @JsonProperty("isComplete")
+    private boolean complete;
+
     private String response;
     private Integer currentQuestion;
     private Integer totalQuestions;

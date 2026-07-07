@@ -34,6 +34,13 @@ public class Question {
     
     private Boolean isCodeQuestion;
 
+    private String codeType; // e.g. "write", "fix", "explain"
+
+    @Column(columnDefinition = "TEXT")
+    private String codeSnippet; // starter/buggy code for code questions
+
+    private String codeLanguage; // e.g. "javascript", "python"
+
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

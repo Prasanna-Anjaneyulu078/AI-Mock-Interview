@@ -20,11 +20,22 @@ function FeedbackPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let retryCount = 0;
+    const MAX_RETRIES = 8; // wait up to ~16 seconds for feedback to be generated
+    const RETRY_DELAY_MS = 2000;
+
     const loadFeedback = async () => {
       try {
         const data = await getInterview(id);
 
+        // FIX: Race condition — feedback may not be saved yet if we navigated immediately
+        // after the last answer. Retry a few times before giving up.
         if (!data.feedback) {
+          if (retryCount < MAX_RETRIES) {
+            retryCount++;
+            setTimeout(loadFeedback, RETRY_DELAY_MS);
+            return;
+          }
           toast.error('No feedback available for this interview.');
           navigate('/');
           return;
@@ -46,16 +57,27 @@ function FeedbackPage() {
     return (
       <div className="feedback-loading-state">
         <div className="spinner-border spinner-border-sm" role="status" />
-        <p className="feedback-loading-text">Loading feedback...</p>
+        <p className="feedback-loading-text">Generating your feedback report...</p>
+        <p style={{ color: 'var(--text-muted, #888)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+          AI is analysing your answers. This may take a few seconds...
+        </p>
       </div>
     );
   }
 
   if (!interview || !interview.feedback) return null;
 
-  const { feedback, role, overallScore } = interview;
+  const { feedback, role } = interview;
+
+  // FIX: overallScore can come from two places depending on which API responded
+  // 1. interview.overallScore (set by InterviewMapper from interview.score)
+  // 2. interview.feedback.overallScore (parsed from the Gemini JSON feedback)
+  const overallScore = interview.overallScore
+    ?? (typeof feedback === 'object' && feedback !== null ? feedback.overallScore : null)
+    ?? 0;
+
   const { categoryScores, strengths, areasOfImprovement, finalAssessment } =
-    feedback;
+    typeof feedback === 'object' && feedback !== null ? feedback : {};
 
   return (
     <div className="feedback-page">

@@ -25,6 +25,7 @@ com\mockinterview\controller\AuthController.class
 com\mockinterview\security\SecurityConfig.class
 com\mockinterview\entity\Resume$ResumeBuilder.class
 com\mockinterview\exception\GlobalExceptionHandler.class
+com\mockinterview\mapper\MessageMapperImpl.class
 com\mockinterview\repository\QuestionRepository.class
 com\mockinterview\dto\AuthResponse.class
 com\mockinterview\security\SecurityBeansConfig.class
@@ -45,10 +46,13 @@ com\mockinterview\security\JwtService.class
 com\mockinterview\entity\Resume.class
 com\mockinterview\entity\User$UserBuilder.class
 com\mockinterview\dto\AnswerResponse.class
+com\mockinterview\dto\HistoryEntryDTO.class
 com\mockinterview\repository\ResumeRepository.class
 com\mockinterview\entity\InterviewHistory.class
 com\mockinterview\entity\Message.class
+com\mockinterview\dto\MessageDTO.class
 com\mockinterview\dto\UserDTO.class
+com\mockinterview\mapper\MessageMapper.class
 com\mockinterview\service\SpeechToTextService.class
 com\mockinterview\mapper\InterviewMapperImpl.class
 com\mockinterview\mapper\UserMapper.class

@@ -11,8 +11,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api/history")
+@Tag(name = "History", description = "Endpoints for managing user interview history")
 public class HistoryController {
 
     private final HistoryService historyService;
@@ -28,7 +32,8 @@ public class HistoryController {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
-    @GetMapping("/")
+    @GetMapping
+    @Operation(summary = "Get paginated interview history")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getHistory(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int limit,
@@ -39,6 +44,7 @@ public class HistoryController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Get specific interview history item")
     public ResponseEntity<ApiResponse<Object>> getHistoryItem(@PathVariable Long id, Authentication authentication) {
         User user = getUser(authentication);
         Object entry = historyService.getHistoryEntry(id, user.getId());
@@ -46,6 +52,7 @@ public class HistoryController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Delete specific interview from history")
     public ResponseEntity<ApiResponse<Map<String, String>>> deleteHistoryItem(@PathVariable Long id, Authentication authentication) {
         User user = getUser(authentication);
         historyService.deleteHistoryEntry(id, user.getId());
@@ -53,6 +60,7 @@ public class HistoryController {
     }
 
     @DeleteMapping("/clear")
+    @Operation(summary = "Clear all interview history for user")
     public ResponseEntity<ApiResponse<Map<String, Object>>> clearHistory(Authentication authentication) {
         User user = getUser(authentication);
         Map<String, Object> result = historyService.clearUserHistory(user.getId());

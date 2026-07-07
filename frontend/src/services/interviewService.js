@@ -2,17 +2,22 @@ import API from './api.js';
 
 const uploadResume = async (file) => {
   const formData = new FormData();
-  formData.append('resume', file);
+  formData.append('file', file);
 
   const response = await API.post('/resume/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
-  return response.data.data;
+  const data = response.data.data;
+  // Normalize: backend returns `extractedText`, frontend expects `text`
+  return { ...data, text: data.extractedText };
 };
 
 const getResume = async () => {
   const response = await API.get('/resume');
-  return response.data.data;
+  const data = response.data.data;
+  if (!data) return null; // No resume uploaded yet
+  // Normalize: backend returns `extractedText`, frontend expects `text`
+  return { ...data, text: data.extractedText };
 };
 
 const startInterview = async (role, resumeText, totalQuestions) => {
@@ -21,7 +26,7 @@ const startInterview = async (role, resumeText, totalQuestions) => {
 };
 
 const submitTextAnswer = async (interviewId, answer) => {
-  const response = await API.post(`/interview/${interviewId}/answer`, { answer });
+  const response = await API.post(`/interview/${interviewId}/answer`, { answerText: answer });
   return response.data.data;
 };
 
@@ -32,6 +37,7 @@ const transcribeAudio = async (audioBlob) => {
   const response = await API.post('/interview/transcribe', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+  // Backend now returns { text: "..." } object
   return response.data.data;
 };
 

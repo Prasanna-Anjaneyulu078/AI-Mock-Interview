@@ -13,8 +13,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api/resume")
+@Tag(name = "Resume", description = "Endpoints for managing user resumes")
 public class ResumeController {
 
     private final ResumeService resumeService;
@@ -28,6 +32,7 @@ public class ResumeController {
     }
 
     @PostMapping("/upload")
+    @Operation(summary = "Upload a new resume")
     public ResponseEntity<ApiResponse<ResumeResponse>> uploadResume(@RequestParam("file") MultipartFile file, Authentication authentication) {
         User user = userRepository.findByEmail(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -50,14 +55,20 @@ public class ResumeController {
         return ResponseEntity.ok(ApiResponse.success("Resume uploaded successfully", response));
     }
 
-    @GetMapping("/")
+    @GetMapping
+    @Operation(summary = "Get the latest resume for user")
     public ResponseEntity<ApiResponse<ResumeResponse>> getResume(Authentication authentication) {
         User user = userRepository.findByEmail(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Resume resume = resumeRepository.findFirstByUserIdOrderByUploadedAtDesc(user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
+        java.util.Optional<Resume> resumeOpt = resumeRepository.findFirstByUserIdOrderByUploadedAtDesc(user.getId());
 
+        if (resumeOpt.isEmpty()) {
+            // Return 200 with null data so the frontend can handle "no resume" gracefully
+            return ResponseEntity.ok(ApiResponse.success("No resume found", null));
+        }
+
+        Resume resume = resumeOpt.get();
         ResumeResponse response = new ResumeResponse();
         response.setId(resume.getId());
         response.setFileName(resume.getFileName());

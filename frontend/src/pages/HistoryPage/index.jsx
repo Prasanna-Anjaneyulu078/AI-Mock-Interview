@@ -43,7 +43,8 @@ function HistoryPage() {
   const handleDelete = async (id) => {
     try {
       await deleteHistoryItem(id);
-      setInterviews((prev) => prev.filter((item) => item._id !== id));
+      // FIX: coerce both to string to avoid Long vs number type mismatch
+      setInterviews((prev) => prev.filter((item) => String(item._id) !== String(id)));
       setTotalEntries((prev) => prev - 1);
       toast.success('Interview deleted');
     } catch (error) {

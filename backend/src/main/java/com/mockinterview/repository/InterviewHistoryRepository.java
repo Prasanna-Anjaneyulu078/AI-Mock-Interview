@@ -12,4 +12,5 @@ public interface InterviewHistoryRepository extends JpaRepository<InterviewHisto
     List<InterviewHistory> findByUserIdOrderByCreatedAtDesc(Long userId);
     org.springframework.data.domain.Page<InterviewHistory> findByUserId(Long userId, org.springframework.data.domain.Pageable pageable);
     Optional<InterviewHistory> findByInterviewId(Long interviewId);
+    void deleteByUserId(Long userId);
 }
