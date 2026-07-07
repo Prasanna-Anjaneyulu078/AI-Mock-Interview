@@ -1,0 +1,140 @@
+.voice-recorder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.vr-record-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.vr-record-btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vr-btn-icon {
+  font-size: 18px;
+}
+
+.vr-recording-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.vr-recording-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vr-record-dot {
+  color: #dc2626;
+  font-size: 20px;
+}
+
+.vr-status-text {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.vr-timer {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #334155;
+}
+
+.vr-stop-btn {
+  background-color: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.vr-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.vr-preview-label {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #334155;
+  margin: 0;
+}
+
+.vr-audio-player {
+  width: 100%;
+  max-width: 400px;
+}
+
+.vr-preview-duration {
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.vr-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vr-rerecord-btn {
+  background-color: #ffffff;
+  color: #2563eb;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.vr-rerecord-btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vr-submit-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.vr-submit-btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

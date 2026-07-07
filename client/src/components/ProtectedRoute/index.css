@@ -1,0 +1,19 @@
+/* ============================================
+   ProtectedRoute - Loading State Styles
+   Palette: Ocean Blue
+   ============================================ */
+
+.protected-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 12px;
+}
+
+.protected-loading-text {
+  font-family: "Roboto", sans-serif;
+  font-size: 16px;
+  color: #64748b;
+}

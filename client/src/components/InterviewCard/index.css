@@ -1,0 +1,95 @@
+.interview-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+}
+
+.interview-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.interview-card-role {
+  font-family: 'Bree Serif', serif;
+  font-size: 18px;
+  color: #0f172a;
+  margin: 0;
+}
+
+.interview-badge {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.badge-success {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.badge-warning {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.interview-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.interview-card-date,
+.interview-card-questions {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.interview-card-score {
+  margin-bottom: 12px;
+}
+
+.score-value {
+  font-family: 'Bree Serif', serif;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.score-label {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  color: #94a3b8;
+  margin-left: 2px;
+}
+
+.interview-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.interview-card-delete {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #dc2626;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.delete-icon {
+  font-size: 18px;
+}

@@ -1,0 +1,348 @@
+.setup-page {
+  background-color: #f8fafc;
+  min-height: 100vh;
+  padding: 32px 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.setup-container {
+  width: 100%;
+  max-width: 1000px;
+}
+
+.setup-step-indicator {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.setup-step-badge {
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  background-color: #ffffff;
+}
+
+.setup-step-active {
+  background-color: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.setup-section {
+  margin-bottom: 32px;
+}
+
+.setup-section-heading {
+  font-family: 'Bree Serif', serif;
+  font-size: 20px;
+  color: #0f172a;
+  margin: 0 0 20px 0;
+}
+
+.setup-roles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.setup-role-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.setup-role-selected {
+  border-color: #2563eb;
+  background-color: #dbeafe;
+}
+
+.setup-role-icon {
+  font-size: 28px;
+  color: #2563eb;
+}
+
+.setup-role-title {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.setup-role-desc {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.setup-difficulty-row {
+  display: flex;
+  gap: 16px;
+}
+
+.setup-difficulty-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.setup-difficulty-selected {
+  border-color: #2563eb;
+  background-color: #dbeafe;
+}
+
+.setup-difficulty-stars {
+  display: flex;
+  gap: 4px;
+  font-size: 20px;
+}
+
+.setup-star-filled {
+  color: #2563eb;
+}
+
+.setup-star-empty {
+  color: #cbd5e1;
+}
+
+.setup-difficulty-label {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.setup-difficulty-desc {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+.setup-resume-area {
+  display: flex;
+  justify-content: center;
+}
+
+.setup-upload-zone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+}
+
+.setup-upload-icon {
+  font-size: 40px;
+  color: #64748b;
+}
+
+.setup-upload-text {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  color: #64748b;
+  margin: 0;
+}
+
+.setup-resume-uploaded {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 480px;
+}
+
+.setup-resume-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.setup-resume-file-icon {
+  font-size: 24px;
+  color: #2563eb;
+}
+
+.setup-resume-name {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  color: #0f172a;
+  font-weight: 600;
+  margin: 0;
+}
+
+.setup-change-resume-btn {
+  padding: 8px 16px;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #334155;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.setup-nav-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.setup-back-btn {
+  padding: 12px 28px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.setup-next-btn {
+  padding: 12px 28px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.setup-start-btn {
+  width: 100%;
+  padding: 14px 24px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.setup-start-btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.setup-preparing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  gap: 16px;
+}
+
+.setup-preparing-spinner {
+  color: #2563eb;
+  width: 48px;
+  height: 48px;
+}
+
+.setup-preparing-heading {
+  font-family: 'Bree Serif', serif;
+  font-size: 24px;
+  color: #0f172a;
+  margin: 0;
+}
+
+.setup-preparing-text {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  color: #64748b;
+  margin: 0;
+  max-width: 480px;
+}
+
+.setup-preparing-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.setup-prep-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.setup-prep-step-icon-active {
+  font-size: 20px;
+  color: #16a34a;
+}
+
+.setup-prep-step-icon-pending {
+  font-size: 20px;
+  color: #94a3b8;
+}
+
+.setup-prep-step-text {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #334155;
+}
+
+.setup-preparing-hint {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #94a3b8;
+  margin: 8px 0 0 0;
+}
+
+@media (max-width: 768px) {
+  .setup-page {
+    padding: 24px 16px;
+  }
+
+  .setup-difficulty-row {
+    flex-direction: column;
+  }
+
+  .setup-step-indicator {
+    flex-wrap: wrap;
+  }
+}

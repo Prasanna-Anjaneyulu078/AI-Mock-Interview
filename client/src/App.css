@@ -1,0 +1,281 @@
+/* ============================================
+   App.css - Global Styles (Ocean Blue Palette)
+   ============================================
+   Skills-compliant: No CSS variables, no animations,
+   no transitions, no transforms, no pseudo-classes.
+   Reference: reference-frontend.md (CSS properties)
+   ============================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Bree+Serif&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&display=swap");
+
+/* Reset (skills-compliant) */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Roboto", sans-serif;
+  background-color: #f8fafc;
+  color: #334155;
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  border-style: none;
+  outline: none;
+  font-family: inherit;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  outline: none;
+}
+
+/* ============================================
+   Shared Button Classes
+   Reference: ui-patterns.md (Button Patterns)
+   ============================================ */
+.btn-primary {
+  background-color: #2563eb;
+  color: #ffffff;
+  font-family: "Roboto";
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 24px;
+  border-radius: 8px;
+  border-style: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.btn-primary-lg {
+  background-color: #2563eb;
+  color: #ffffff;
+  font-family: "Roboto";
+  font-size: 16px;
+  font-weight: 700;
+  padding: 14px 32px;
+  border-radius: 8px;
+  border-style: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: #2563eb;
+  font-family: "Roboto";
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 24px;
+  border-radius: 8px;
+  border-style: solid;
+  border-width: 2px;
+  border-color: #2563eb;
+  cursor: pointer;
+  outline: none;
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  color: #ffffff;
+  font-family: "Roboto";
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 24px;
+  border-radius: 8px;
+  border-style: none;
+  cursor: pointer;
+}
+
+.btn-danger-text {
+  background-color: transparent;
+  color: #dc2626;
+  font-family: "Roboto";
+  font-size: 14px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-style: none;
+  cursor: pointer;
+}
+
+.btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   Shared Badge Classes
+   Reference: text-highlight-patterns.md (Method 4)
+   ============================================ */
+.badge {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  font-family: "Roboto";
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 100px;
+  display: inline-block;
+}
+
+.badge-success {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.badge-warning {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.badge-error {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+/* ============================================
+   Shared Callout Classes
+   Reference: text-highlight-patterns.md (Method 5)
+   ============================================ */
+.callout {
+  border-style: solid;
+  border-width: 0px;
+  border-left-width: 4px;
+  border-color: #2563eb;
+  background-color: #f8fafc;
+  padding: 16px 20px;
+  border-radius: 0px 8px 8px 0px;
+}
+
+.callout-success {
+  border-color: #16a34a;
+  background-color: #f0fdf4;
+}
+
+.callout-warning {
+  border-color: #d97706;
+  background-color: #fffbeb;
+}
+
+.callout-error {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.callout-info {
+  border-color: #0891b2;
+  background-color: #ecfeff;
+}
+
+/* ============================================
+   Shared Form Classes
+   Reference: ui-patterns.md (Form Design)
+   ============================================ */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.form-label {
+  font-family: "Roboto";
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+.form-input {
+  font-family: "Roboto";
+  font-size: 16px;
+  padding: 12px 16px;
+  border-style: solid;
+  border-width: 1px;
+  border-color: #cbd5e1;
+  border-radius: 8px;
+  color: #0f172a;
+  background-color: #ffffff;
+  outline: none;
+}
+
+/* ============================================
+   Shared Card Classes
+   Reference: ui-patterns.md (Card Design Pattern)
+   ============================================ */
+.card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  border-style: solid;
+  border-width: 1px;
+  border-color: #e2e8f0;
+  padding: 24px;
+}
+
+/* ============================================
+   Loading State (Bootstrap Spinner)
+   UI NOTE: Using Bootstrap spinner-border pattern
+   since custom @keyframes are not in student refs.
+   ============================================ */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  gap: 16px;
+}
+
+.loading-container p {
+  font-family: "Roboto";
+  font-size: 16px;
+  color: #64748b;
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 64px 24px;
+  gap: 12px;
+  text-align: center;
+}
+
+.empty-container h3 {
+  font-family: "Bree Serif";
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.empty-container p {
+  font-family: "Roboto";
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* ============================================
+   App Shell
+   ============================================ */
+.app-shell {
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+.protected-shell {
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
