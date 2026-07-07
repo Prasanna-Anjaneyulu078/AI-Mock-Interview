@@ -1,0 +1,11 @@
+{
+  "java.project.sourcePaths": [
+    "backend/src/main/java",
+    "backend/src/test/java"
+  ],
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.maven.enabled": true,
+  "maven.pomfile.paths": [
+    "backend/pom.xml"
+  ]
+}
