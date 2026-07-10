@@ -20,4 +20,6 @@ Thumbs.db
 .env
 .env.local
 .env.production
-.claude/.claude/ 
+
+# Claude settings (contains local secrets)
+.claude/
