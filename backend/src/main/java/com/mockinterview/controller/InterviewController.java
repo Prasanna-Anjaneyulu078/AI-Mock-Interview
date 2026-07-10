@@ -64,12 +64,24 @@ public class InterviewController {
     }
 
     @PostMapping("/{id}/code")
-    @Operation(summary = "Submit a code answer")
+    @Operation(summary = "Submit a code answer (runs all test cases including hidden)")
     public ResponseEntity<ApiResponse<AnswerResponse>> submitCode(@PathVariable Long id, @RequestBody AnswerRequest request, Authentication authentication) {
         User user = getUser(authentication);
         AnswerResponse response = interviewService.submitAnswer(user.getId(), id, request);
         return ResponseEntity.ok(ApiResponse.success("Code processed", response));
     }
+
+    @PostMapping("/{id}/run-code")
+    @Operation(summary = "Run code against sample (visible) test cases only — does NOT advance the interview")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> runCode(
+            @PathVariable Long id,
+            @RequestBody AnswerRequest request,
+            Authentication authentication) {
+        User user = getUser(authentication);
+        java.util.Map<String, Object> result = interviewService.runCodeSample(user.getId(), id, request);
+        return ResponseEntity.ok(ApiResponse.success("Code executed", result));
+    }
+
 
     @PostMapping("/transcribe")
     @Operation(summary = "Transcribe audio to text")
@@ -87,11 +99,18 @@ public class InterviewController {
     }
 
     @PostMapping("/{id}/speak")
-    @Operation(summary = "Convert text to speech")
-    public ResponseEntity<org.springframework.core.io.Resource> speakText(@PathVariable Long id, @RequestBody java.util.Map<String, String> request) {
-        org.springframework.core.io.Resource audioResource = interviewService.speakText(request.get("text"));
-        return ResponseEntity.ok()
-                .contentType(org.springframework.http.MediaType.parseMediaType("audio/mpeg"))
-                .body(audioResource);
+    @Operation(summary = "Convert text to speech (Murf AI)")
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> speakText(@PathVariable Long id, @RequestBody java.util.Map<String, String> request) {
+        String audio = interviewService.speakText(request.get("text"));
+        java.util.Map<String, String> body = new java.util.HashMap<>();
+        body.put("audio", audio != null ? audio : "");
+        return ResponseEntity.ok(ApiResponse.success("Speech generated", body));
+    }
+    @GetMapping("/{id}/welcome")
+    @Operation(summary = "Get dynamic welcome introduction audio and text")
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> getWelcomeIntroduction(@PathVariable Long id, Authentication authentication) {
+        User user = getUser(authentication);
+        java.util.Map<String, String> response = interviewService.generateWelcomeIntroduction(user.getId(), id);
+        return ResponseEntity.ok(ApiResponse.success("Welcome generated", response));
     }
 }

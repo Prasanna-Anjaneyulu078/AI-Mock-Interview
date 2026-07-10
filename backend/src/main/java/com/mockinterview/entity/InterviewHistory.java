@@ -7,7 +7,10 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "interview_histories")
+@Table(name = "interview_histories", indexes = {
+        @Index(name = "idx_history_user", columnList = "user_id"),
+        @Index(name = "idx_history_created", columnList = "created_at")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -33,6 +36,13 @@ public class InterviewHistory {
 
     @Column(columnDefinition = "TEXT")
     private String improvements;
+
+    // Skill-level insights (#8) persisted per interview for analytics.
+    @Column(columnDefinition = "TEXT")
+    private String strongSkills; // JSON array string
+
+    @Column(columnDefinition = "TEXT")
+    private String weakSkills;   // JSON array string
 
     @CreationTimestamp
     private LocalDateTime createdAt;

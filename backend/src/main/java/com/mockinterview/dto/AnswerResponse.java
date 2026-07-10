@@ -3,6 +3,8 @@ package com.mockinterview.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class AnswerResponse {
     // FIX: Lombok generates isIsComplete() for a boolean field named "isComplete",
@@ -18,4 +20,7 @@ public class AnswerResponse {
     private String audio;
     private String message; // For farewell message when complete
     private Object evaluation; // For code evaluation results
+
+    /** Follow-up questions generated for the just-answered question (spec #4). */
+    private List<QuestionDTO> followUps;
 }

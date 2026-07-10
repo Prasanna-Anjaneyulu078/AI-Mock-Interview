@@ -8,9 +8,14 @@ public class InterviewRequest {
     @NotBlank(message = "Role is required")
     private String role;
 
-    private String resumeText;
-    private String candidateName;
+    private Long resumeId;
+    private String interviewLevel; // STARTER, STANDARD, ADVANCED
+    
+    private Boolean voiceEnabled;
+    private String voiceName;
+    private Double voiceSpeed;
 
-    // Updated default: minimum 10 questions for a meaningful interview
-    private Integer totalQuestions = 10;
+    // Murf voice selection (populated by the setup UI voice picker)
+    private String voiceId;
+    private String style;
 }

@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "questions")
+@Table(name = "questions", indexes = @Index(name = "idx_question_interview", columnList = "interview_id"))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -26,13 +26,29 @@ public class Question {
     private String questionText;
 
     @Column(columnDefinition = "TEXT")
-    private String expectedAnswer;
+    private String expectedAnswer; // mapped to idealAnswer
+
+    @Column(columnDefinition = "TEXT")
+    private String explanation;
+
+    private String difficulty;
+
+    /**
+     * Stable 1-based position of this question within the interview. Follow-ups are
+     * inserted immediately after their parent's sequence so the interview flows
+     * naturally (the next request returns the follow-up) and survives page reloads.
+     */
+    private Integer sequence;
 
     private Boolean generatedByAI;
 
     private String type; // e.g. "behavioral", "technical"
     
     private Boolean isCodeQuestion;
+
+    private Boolean isFollowUp; // true for dynamically generated follow-up questions
+
+    private Long parentQuestionId; // the question this follow-up probes (nullable)
 
     private String codeType; // e.g. "write", "fix", "explain"
 
@@ -46,4 +62,11 @@ public class Question {
     @EqualsAndHashCode.Exclude
     @Builder.Default
     private List<Answer> answers = new ArrayList<>();
+
+    /** Auto-grading test cases (visible + hidden) executed by Judge0 for code questions. */
+    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Builder.Default
+    private List<TestCase> testCases = new ArrayList<>();
 }

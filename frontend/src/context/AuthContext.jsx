@@ -21,7 +21,7 @@ function AuthProvider({ children }) {
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
-      if (!token) {
+      if (!token || token === 'undefined' || token === 'null') {
         setLoading(false);
         return;
       }
@@ -30,23 +30,37 @@ function AuthProvider({ children }) {
         const userData = await getMe();
         setUser(userData);
       } catch (error) {
+        // Token may be expired; clear both tokens so the api interceptor
+        // can't attempt a refresh with a missing refresh token.
         localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
       }
       setLoading(false);
     };
 
+    const handleForceLogout = () => {
+      logoutUser();
+    };
+
+    window.addEventListener('auth:logout', handleForceLogout);
     checkAuth();
+
+    return () => {
+      window.removeEventListener('auth:logout', handleForceLogout);
+    };
   }, []);
 
-  // Login: save token and set user
-  const login = (token, userData) => {
+  // Login: save access + refresh tokens and set user
+  const login = (token, refreshToken, userData) => {
     localStorage.setItem('token', token);
+    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
     setUser(userData);
   };
 
-  // Logout: remove token and clear user
+  // Logout: remove both tokens and clear user
   const logoutUser = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     setUser(null);
   };
 

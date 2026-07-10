@@ -28,6 +28,40 @@ public class Resume {
     @Column(columnDefinition = "TEXT")
     private String resumeText; // original "extractedText"
 
+    @Column(columnDefinition = "TEXT")
+    private String structuredSkills; // Full structured profile JSON (all 8 fields)
+
+    // ── Dedicated structured profile columns (replaces reliance on the JSON blob) ──
+    @Column(columnDefinition = "TEXT")
+    private String skills;          // JSON array string, e.g. ["Java","Spring Boot"]
+
+    @Column(columnDefinition = "TEXT")
+    private String technologies;    // JSON array string
+
+    @Column(columnDefinition = "TEXT")
+    private String frameworks;      // JSON array string
+
+    @Column(columnDefinition = "TEXT")
+    private String languages;       // JSON array string (programming languages)
+
+    @Column(columnDefinition = "TEXT")
+    private String projects;        // JSON array string
+
+    @Column(columnDefinition = "TEXT")
+    private String education;       // JSON array string
+
+    @Column(columnDefinition = "TEXT")
+    private String experience;      // JSON array string
+
+    @Column(columnDefinition = "TEXT")
+    private String certifications;  // JSON array string
+
+    @Column(columnDefinition = "TEXT")
+    private String achievements;    // JSON array string
+
+    @Column(columnDefinition = "TEXT")
+    private String domainsOfExpertise; // JSON array string (e.g. "Backend", "Cloud")
+
     @CreationTimestamp
     private LocalDateTime uploadedAt;
 }

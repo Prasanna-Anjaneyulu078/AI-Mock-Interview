@@ -4,6 +4,7 @@ import {
   uploadResume,
   getResume,
   startInterview,
+  getMurfVoices,
 } from '../../services/interviewService.js';
 import INTERVIEW_ROLES from '../../constants/roles.js';
 import DIFFICULTY_LEVELS from '../../constants/difficulty.js';
@@ -18,7 +19,7 @@ import {
   BsFileEarmarkArrowUp,
   BsCheckCircleFill,
 } from 'react-icons/bs';
-import { FaPython, FaReact, FaJava } from 'react-icons/fa';
+import { FaPython, FaReact, FaJava, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import './index.css';
 
@@ -34,21 +35,21 @@ const ROLE_ICONS = {
 };
 
 const DIFFICULTY_ICONS = {
-  easy: (
+  starter: (
     <span className="setup-difficulty-stars">
       <BsStarFill className="setup-star-filled" />
       <BsStar className="setup-star-empty" />
       <BsStar className="setup-star-empty" />
     </span>
   ),
-  medium: (
+  standard: (
     <span className="setup-difficulty-stars">
       <BsStarFill className="setup-star-filled" />
       <BsStarFill className="setup-star-filled" />
       <BsStar className="setup-star-empty" />
     </span>
   ),
-  hard: (
+  advanced: (
     <span className="setup-difficulty-stars">
       <BsStarFill className="setup-star-filled" />
       <BsStarFill className="setup-star-filled" />
@@ -62,9 +63,37 @@ function InterviewSetupPage() {
 
   const [step, setStep] = useState(1);
   const [selectedRole, setSelectedRole] = useState('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('medium');
+  const [selectedDifficulty, setSelectedDifficulty] = useState('standard');
   const [resumeText, setResumeText] = useState('');
+  const [parsedResume, setParsedResume] = useState(null);
+  const [resumeId, setResumeId] = useState(null);
   const [resumeFileName, setResumeFileName] = useState('');
+  
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceSpeed, setVoiceSpeed] = useState(1.0);
+  const [murfVoices, setMurfVoices] = useState([]);
+  const [selectedVoiceId, setSelectedVoiceId] = useState('');
+  const [selectedStyle, setSelectedStyle] = useState('');
+  const [voicesLoading, setVoicesLoading] = useState(false);
+
+  // Fetch the list of Murf voices for the picker (only when voice is enabled)
+  useEffect(() => {
+    if (!voiceEnabled) return;
+    let cancelled = false;
+    const loadVoices = async () => {
+      setVoicesLoading(true);
+      try {
+        const data = await getMurfVoices();
+        if (!cancelled) setMurfVoices(data || []);
+      } catch (e) {
+        if (!cancelled) setMurfVoices([]);
+      } finally {
+        if (!cancelled) setVoicesLoading(false);
+      }
+    };
+    loadVoices();
+    return () => { cancelled = true; };
+  }, [voiceEnabled]);
   const [loading, setLoading] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
 
@@ -75,6 +104,10 @@ function InterviewSetupPage() {
         if (data) {
           setResumeText(data.text);
           setResumeFileName(data.fileName);
+          setResumeId(data.id);
+          if (data.structuredSkills) {
+            try { setParsedResume(JSON.parse(data.structuredSkills)); } catch(e) {}
+          }
         }
       } catch (error) {
         // No resume found - that's okay
@@ -99,6 +132,10 @@ function InterviewSetupPage() {
       const data = await uploadResume(file);
       setResumeText(data.text);
       setResumeFileName(data.fileName);
+      setResumeId(data.id);
+      if (data.structuredSkills) {
+        try { setParsedResume(JSON.parse(data.structuredSkills)); } catch(e) {}
+      }
       toast.success('Resume uploaded successfully!');
     } catch (error) {
       const message =
@@ -122,18 +159,23 @@ function InterviewSetupPage() {
     setLoading(true);
 
     try {
-      const difficultyConfig = DIFFICULTY_LEVELS.find(
-        (d) => d.id === selectedDifficulty
-      );
-      const totalQuestions = difficultyConfig ? difficultyConfig.questions : 5;
       const data = await startInterview(
         selectedRole,
-        resumeText,
-        totalQuestions
+        resumeId,
+        selectedDifficulty.toUpperCase(),
+        {
+          voiceEnabled,
+          voiceId: selectedVoiceId || undefined,
+          style: selectedStyle || undefined,
+          voiceSpeed,
+        }
       );
       toast.success('Interview started!');
       navigate(`/interview/${data.interviewId}`, {
-        state: { audio: data.audio },
+        state: {
+          audio: data.audio,
+          voiceSettings: { voiceEnabled, voiceId: selectedVoiceId, voiceSpeed },
+        },
       });
     } catch (error) {
       const message =
@@ -149,7 +191,7 @@ function InterviewSetupPage() {
       toast.error('Please select a role.');
       return;
     }
-    setStep((prev) => Math.min(prev + 1, 3));
+    setStep((prev) => Math.min(prev + 1, 4));
   };
 
   const handleBack = () => {
@@ -214,6 +256,11 @@ function InterviewSetupPage() {
             className={`setup-step-badge ${step >= 3 ? 'setup-step-active' : ''}`}
           >
             3. Resume
+          </span>
+          <span
+            className={`setup-step-badge ${step >= 4 ? 'setup-step-active' : ''}`}
+          >
+            4. Voice Settings
           </span>
         </div>
 
@@ -299,13 +346,97 @@ function InterviewSetupPage() {
           </div>
         )}
 
+        {step === 4 && (
+          <div className="setup-section">
+            <h2 className="setup-section-heading">Voice Interviewer Settings</h2>
+
+            <div className="setup-field">
+              <label className="setup-label">Enable voice interviewer</label>
+              <label className="setup-toggle">
+                <input
+                  type="checkbox"
+                  checked={voiceEnabled}
+                  onChange={(e) => setVoiceEnabled(e.target.checked)}
+                />
+                <span>{voiceEnabled ? 'On' : 'Off'}</span>
+              </label>
+            </div>
+
+            {voiceEnabled && (
+              <>
+                <div className="setup-field">
+                  <label className="setup-label">Interviewer Voice</label>
+                  {voicesLoading ? (
+                    <p className="setup-voice-hint">Loading voices…</p>
+                  ) : murfVoices.length === 0 ? (
+                    <p className="setup-voice-hint">
+                      Voice list unavailable (Murf not configured). A default voice will be used.
+                    </p>
+                  ) : (
+                    <select
+                      className="setup-input"
+                      value={selectedVoiceId}
+                      onChange={(e) => {
+                        const v = murfVoices.find((x) => x.voiceId === e.target.value);
+                        setSelectedVoiceId(e.target.value);
+                        setSelectedStyle(v && v.styles && v.styles.length ? v.styles[0] : '');
+                      }}
+                    >
+                      <option value="">Default voice</option>
+                      {murfVoices.map((v) => (
+                        <option key={v.voiceId} value={v.voiceId}>
+                          {v.name} ({v.gender || '—'}, {v.language || v.locale || 'en'})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {(() => {
+                  const current = murfVoices.find((x) => x.voiceId === selectedVoiceId);
+                  if (!current || !current.styles || current.styles.length === 0) return null;
+                  return (
+                    <div className="setup-field">
+                      <label className="setup-label">Speaking Style</label>
+                      <select
+                        className="setup-input"
+                        value={selectedStyle}
+                        onChange={(e) => setSelectedStyle(e.target.value)}
+                      >
+                        {current.styles.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })()}
+
+                <div className="setup-field">
+                  <label className="setup-label">
+                    Speaking Speed: {voiceSpeed.toFixed(2)}x
+                  </label>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value={voiceSpeed}
+                    onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
+                    className="setup-range"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="setup-nav-buttons">
           {step > 1 && (
             <button className="setup-back-btn" onClick={handleBack}>
               Back
             </button>
           )}
-          {step < 3 ? (
+          {step < 4 ? (
             <button className="setup-next-btn" onClick={handleNext}>
               Next
             </button>

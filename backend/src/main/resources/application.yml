@@ -1,10 +1,17 @@
 server:
-  port: 8083
+  port: 8082
 
 spring:
   application:
     name: ai-mock-interview-server
-  
+
+  # ── File uploads: support up to 10MB resumes AND voice recordings ──
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:mockinterview}
     username: ${DB_USER:postgres}
@@ -14,22 +21,75 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+    com.mockinterview: INFO
+    org.hibernate.SQL: OFF
+    org.hibernate.orm.jdbc.bind: OFF
+    org.hibernate.type.descriptor.sql: OFF
+    org.springframework.jdbc.core: OFF
+    org.springframework.jdbc.core.StatementCreatorUtils: OFF
 
 app:
   security:
     jwt:
-      secret: ${JWT_SECRET:8f7e6d5c4b3a2918273645546372819203948576abefcd}
-      expiration-ms: 86400000 # 24 hours
+      # REQUIRED. No default — startup FAILS if JWT_SECRET is not supplied via environment
+      # (enforced by com.mockinterview.config.SecurityConfigValidator).
+      # Must be a Base64-encoded string that decodes to >= 32 bytes (256 bits) for HS256.
+      # Generate one with:  openssl rand -base64 32
+      secret: ${JWT_SECRET:}
+      refresh-secret: ${JWT_REFRESH_SECRET:}
+      expiration-ms: 86400000        # 24 hours
+      refresh-expiration-ms: 604800000 # 7 days
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+    rate-limit:
+      auth-requests-per-minute: 5
+      api-requests-per-minute: 30
+
+  upload:
+    max-file-size: 10MB
+    allowed-types:
+      - application/pdf
+
+  # ── Centralized AI provider settings ──
+  # Every provider is OPTIONAL: when its key/url is blank the service disables
+  # itself gracefully (falls back to static questions / AI scoring / no audio).
   ai:
-    gemini:
-      api-key: ${GEMINI_API_KEY:}
+    openrouter:
+      api-key: ${OPENROUTER_API_KEY:}
+      model: ${OPENROUTER_MODEL:google/gemini-2.5-flash}
+      timeout-ms: 30000
+    groq:
+      api-key: ${GROQ_API_KEY:}
+      model: ${GROQ_MODEL:llama3-70b-8192}
+      timeout-ms: 30000
+    ollama:
+      url: ${OLLAMA_URL:http://localhost:11434}
+      model: ${OLLAMA_MODEL:llama3}
+      timeout-ms: 60000
     assemblyai:
       api-key: ${ASSEMBLYAI_API_KEY:}
+      timeout-ms: ${ASSEMBLYAI_TIMEOUT_MS:30000}
+      poll-timeout-ms: ${ASSEMBLYAI_POLL_TIMEOUT_MS:60000}
+      max-polls: ${ASSEMBLYAI_MAX_POLLS:20}
+    murf:
+      api-key: ${MURF_API_KEY:}
+      default-voice: ${MURF_DEFAULT_VOICE:en-US-natalie}
+      default-style: ${MURF_DEFAULT_STYLE:Conversational}
+      timeout-ms: ${MURF_TIMEOUT_MS:10000}
+      max-retries: ${MURF_MAX_RETRIES:3}
+    judge0:
+      url: ${JUDGE0_URL:}
+      api-key: ${JUDGE0_API_KEY:}
+      timeout-ms: ${JUDGE0_TIMEOUT_MS:30000}
 
 springdoc:
   api-docs:

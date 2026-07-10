@@ -10,6 +10,7 @@ import java.util.Optional;
 @Repository
 public interface InterviewHistoryRepository extends JpaRepository<InterviewHistory, Long> {
     List<InterviewHistory> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<InterviewHistory> findByUserIdOrderByCreatedAtAsc(Long userId);
     org.springframework.data.domain.Page<InterviewHistory> findByUserId(Long userId, org.springframework.data.domain.Pageable pageable);
     Optional<InterviewHistory> findByInterviewId(Long interviewId);
     void deleteByUserId(Long userId);

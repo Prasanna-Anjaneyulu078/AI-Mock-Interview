@@ -31,8 +31,8 @@ function Navbar() {
         </Link>
         <div className="nav-links">
           <Link
-            to="/"
-            className={`nav-link ${location.pathname === '/' ? 'nav-link-active' : ''}`}
+            to="/dashboard"
+            className={`nav-link ${location.pathname === '/dashboard' ? 'nav-link-active' : ''}`}
           >
             <MdDashboard className="nav-link-icon" />
             Dashboard
@@ -72,8 +72,8 @@ function Navbar() {
       {menuOpen && (
         <div className="navbar-mobile-menu">
           <Link
-            to="/"
-            className={`mobile-nav-link ${location.pathname === '/' ? 'mobile-nav-link-active' : ''}`}
+            to="/dashboard"
+            className={`mobile-nav-link ${location.pathname === '/dashboard' ? 'mobile-nav-link-active' : ''}`}
             onClick={handleNavClick}
           >
             <MdDashboard className="mobile-nav-icon" />

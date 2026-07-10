@@ -7,5 +7,6 @@
   "java.import.maven.enabled": true,
   "maven.pomfile.paths": [
     "backend/pom.xml"
-  ]
+  ],
+  "claudeCode.useTerminal": true
 }

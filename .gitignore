@@ -1,0 +1,23 @@
+# Build output
+backend/target/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+.env.production
+.claude/.claude/ 

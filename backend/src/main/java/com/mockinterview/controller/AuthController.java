@@ -35,6 +35,13 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Login successful", response));
     }
 
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh an expired access token using a refresh token")
+    public ResponseEntity<ApiResponse<TokenRefreshResponse>> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        TokenRefreshResponse response = authService.refresh(request.getRefreshToken());
+        return ResponseEntity.ok(ApiResponse.success("Token refreshed", response));
+    }
+
     @GetMapping("/me")
     @Operation(summary = "Get current user profile")
     public ResponseEntity<ApiResponse<UserDTO>> getProfile(Authentication authentication) {

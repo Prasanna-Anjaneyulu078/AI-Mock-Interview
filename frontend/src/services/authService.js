@@ -26,4 +26,11 @@ const logout = async () => {
   return response.data;
 };
 
-export { register, emailLogin, getMe, logout };
+// Exchange a refresh token for a new access + refresh pair.
+// Returns { accessToken, refreshToken, expiresIn, tokenType }.
+const refreshToken = async (refreshToken) => {
+  const response = await API.post('/auth/refresh', { refreshToken });
+  return response.data.data;
+};
+
+export { register, emailLogin, getMe, logout, refreshToken };

@@ -22,16 +22,19 @@ services:
     build: .
     container_name: mockinterview-backend
     ports:
-      - "5000:5000"
+      - "8082:8082"
     environment:
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=postgres
-      - DB_PASSWORD=password123
+      - DB_PASSWORD=${DB_PASSWORD:password123}
       - DB_NAME=mockinterview
-      - JWT_SECRET=8f7e6d5c4b3a2918273645546372819203948576abefcd1234567890abcdef
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-your_gemini_api_key_here}
-      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-your_assemblyai_api_key_here}
+      # Secrets are injected from the host environment — never hardcoded here.
+      - JWT_SECRET=${JWT_SECRET}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:}
+      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:}
+      - MURF_API_KEY=${MURF_API_KEY:}
+      - JUDGE0_API_KEY=${JUDGE0_API_KEY:}
     depends_on:
       db:
         condition: service_healthy

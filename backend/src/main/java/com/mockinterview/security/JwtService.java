@@ -20,61 +20,94 @@ public class JwtService {
     @Value("${app.security.jwt.secret}")
     private String secretKey;
 
+    @Value("${app.security.jwt.refresh-secret}")
+    private String refreshSecretKey;
+
     @Value("${app.security.jwt.expiration-ms}")
     private long jwtExpiration;
+
+    @Value("${app.security.jwt.refresh-expiration-ms}")
+    private long refreshExpiration;
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
+        return extractClaim(token, false, claimsResolver);
+    }
+
+    public <T> T extractClaim(String token, boolean isRefresh, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token, isRefresh);
         return claimsResolver.apply(claims);
     }
 
+    public String extractUsernameFromRefresh(String token) {
+        return extractClaim(token, true, Claims::getSubject);
+    }
+
     public String generateToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails);
+        return generateToken(new HashMap<>(), userDetails, jwtExpiration, false);
+    }
+
+    public String generateRefreshToken(UserDetails userDetails) {
+        return generateToken(new HashMap<>(), userDetails, refreshExpiration, true);
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
-        return buildToken(extraClaims, userDetails, jwtExpiration);
+        return generateToken(extraClaims, userDetails, jwtExpiration, false);
     }
 
-    private String buildToken(Map<String, Object> extraClaims, UserDetails userDetails, long expiration) {
+    private String generateToken(Map<String, Object> extraClaims, UserDetails userDetails, long expiration, boolean isRefresh) {
+        String key = isRefresh ? refreshSecretKey : secretKey;
         return Jwts
                 .builder()
                 .claims(extraClaims)
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSignInKey())
+                .signWith(getSignInKey(key))
                 .compact();
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token, false);
     }
 
-    private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+    public boolean isRefreshTokenValid(String token, UserDetails userDetails) {
+        final String username = extractUsernameFromRefresh(token);
+        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token, true);
     }
 
-    private Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
+    private boolean isTokenExpired(String token, boolean isRefresh) {
+        return extractExpiration(token, isRefresh).before(new Date());
     }
 
-    private Claims extractAllClaims(String token) {
+    private Date extractExpiration(String token, boolean isRefresh) {
+        return extractClaim(token, isRefresh, Claims::getExpiration);
+    }
+
+    private Claims extractAllClaims(String token, boolean isRefresh) {
+        String key = isRefresh ? refreshSecretKey : secretKey;
         return Jwts
                 .parser()
-                .verifyWith(getSignInKey())
+                .verifyWith(getSignInKey(key))
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
     }
 
-    private SecretKey getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+    private SecretKey getSignInKey(String key) {
+        byte[] keyBytes = Decoders.BASE64.decode(key);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    public long getJwtExpiration() {
+        return jwtExpiration;
+    }
+
+    public long getRefreshExpiration() {
+        return refreshExpiration;
     }
 }

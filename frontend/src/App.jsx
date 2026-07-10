@@ -7,6 +7,7 @@ import InterviewSetupPage from './pages/InterviewSetupPage';
 import InterviewPage from './pages/InterviewPage';
 import FeedbackPage from './pages/FeedbackPage';
 import HistoryPage from './pages/HistoryPage';
+import DashboardPage from './pages/DashboardPage';
 
 function App() {
   return (
@@ -56,6 +57,15 @@ function App() {
             <ProtectedRoute>
               <Navbar />
               <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Navbar />
+              <DashboardPage />
             </ProtectedRoute>
           }
         />

@@ -13,7 +13,8 @@ app:
   security:
     jwt:
       secret: 8f7e6d5c4b3a2918273645546372819203948576abefcd
+      refresh-secret: 8f7e6d5c4b3a2918273645546372819203948576abefcd
       expiration-ms: 86400000
 
 server:
-  port: 8080
+  port: 8082

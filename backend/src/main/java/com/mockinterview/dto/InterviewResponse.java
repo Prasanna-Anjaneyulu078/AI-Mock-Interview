@@ -4,7 +4,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
+
 
 @Data
 public class InterviewResponse {
@@ -22,6 +22,7 @@ public class InterviewResponse {
     private Double overallScore;
     private String interviewType;
     private String role;       // alias for interviewType — FeedbackPage reads `role`
+    private String adaptedDifficulty; // #5 adaptive engine: difficulty tuned mid-interview
 
     // Feedback as parsed JSON object (FeedbackPage reads interview.feedback.categoryScores etc.)
     private Object feedback;

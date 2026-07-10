@@ -9,25 +9,29 @@
 
 const DIFFICULTY_LEVELS = [
   {
-    id: 'easy',
+    id: 'starter',
     label: 'Starter',
     stars: 1,
-    questions: 10,
-    description: '10 questions — warm-up + basics',
+    questions: 7,
+    // 1 introduction (HR) + 1 HR + 3 Technical + 2 Project = 7 total.
+    // Difficulty drives question DEPTH (basic concepts), not just the count.
+    description: '7 questions — Beginner (1 intro + 1 HR, 3 Tech, 2 Project). Basic concepts.',
   },
   {
-    id: 'medium',
+    id: 'standard',
     label: 'Standard',
     stars: 2,
-    questions: 12,
-    description: '12 questions — balanced mix',
+    questions: 15,
+    // 1 introduction (HR) + 3 HR + 6 Technical + 5 Project = 15 total.
+    description: '15 questions — Placement Prep (1 intro + 3 HR, 6 Tech, 5 Project). Practical & debugging.',
   },
   {
-    id: 'hard',
+    id: 'advanced',
     label: 'Advanced',
     stars: 3,
-    questions: 15,
-    description: '15 questions — deep dive + coding',
+    questions: 25,
+    // 1 introduction (HR) + 4 HR + 10 Technical + 10 Project = 25 total.
+    description: '25 questions — Product Companies (1 intro + 4 HR, 10 Tech, 10 Project). Architecture & scaling.',
   },
 ];
 

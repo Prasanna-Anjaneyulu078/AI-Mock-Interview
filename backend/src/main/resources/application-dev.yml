@@ -1,0 +1,31 @@
+# Local development profile.
+# Uses an in-memory H2 database so the backend boots with zero external
+# dependencies (no PostgreSQL required). Your production PostgreSQL config
+# in application.yml is untouched; activate this with SPRING_PROFILES_ACTIVE=dev.
+spring:
+  datasource:
+    url: jdbc:h2:mem:mockinterview;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+    show-sql: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+app:
+  security:
+    jwt:
+      # DEV-ONLY throwaway Base64 secret (decodes to 36 bytes, satisfies HS256 + validator).
+      # Override with the JWT_SECRET env var in ANY non-dev environment. NEVER use in production.
+      secret: ${JWT_SECRET:YWIzZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXowMTIzNDU2Nzg5}
+      # DEV-ONLY throwaway Base64 refresh secret. Override with JWT_REFRESH_SECRET env var.
+      refresh-secret: ${JWT_REFRESH_SECRET:cmVmcmVzaFNlY3JldEtleUZvckxvY2FsRGV2T25seTIwMjREb05vdFVzZUluUHJvZA==}

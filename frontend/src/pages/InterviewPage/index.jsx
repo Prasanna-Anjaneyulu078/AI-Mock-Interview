@@ -5,7 +5,9 @@ import {
   submitTextAnswer,
   transcribeAudio,
   submitCode,
+  runCode,
   endInterview,
+  getWelcomeIntroduction,
 } from '../../services/interviewService.js';
 import VoiceRecorder from '../../components/VoiceRecorder';
 import AudioPlayer from '../../components/AudioPlayer';
@@ -44,6 +46,8 @@ function InterviewPage() {
   const [code, setCode] = useState('');
   const [codeLanguage, setCodeLanguage] = useState('javascript');
   const [codeEvaluation, setCodeEvaluation] = useState(null);
+  const [runCodeResult, setRunCodeResult] = useState(null);
+  const [runningCode, setRunningCode] = useState(false);
 
   const [currentAudio, setCurrentAudio] = useState(null);
   const [audioKey, setAudioKey] = useState(0);
@@ -78,13 +82,27 @@ function InterviewPage() {
         }
 
         if (data.currentQuestion === 1) {
-          const audio = location.state?.audio || data.lastAudio;
-          if (audio) {
-            setCurrentAudio(audio);
+          const passedAudio = location.state?.audio || data.lastAudio;
+          if (passedAudio) {
+            // Audio came from startInterview response — play immediately
+            setCurrentAudio(passedAudio);
             setInterviewerState(STATE_SPEAKING);
           } else {
+            // Fetch dynamic welcome introduction from backend
             setInterviewerState(STATE_SPEAKING);
-            setTimeout(() => setInterviewerState(STATE_LISTENING), 3000);
+            try {
+              const welcome = await getWelcomeIntroduction(id);
+              if (welcome?.text) setInterviewerText(welcome.text);
+              if (welcome?.audio) {
+                setCurrentAudio(welcome.audio);
+                setAudioKey((prev) => prev + 1);
+              } else {
+                // No Murf audio available — advance after short delay
+                setTimeout(() => setInterviewerState(STATE_LISTENING), 4000);
+              }
+            } catch (_) {
+              setTimeout(() => setInterviewerState(STATE_LISTENING), 3000);
+            }
           }
         } else {
           setInterviewerState(STATE_LISTENING);
@@ -101,13 +119,14 @@ function InterviewPage() {
 
   const handleAudioEnded = () => {
     if (interviewerState === STATE_FAREWELL) return;
-    setTimeout(() => setInterviewerState(STATE_LISTENING), 3000);
+    setInterviewerState(STATE_LISTENING);
   };
 
   const resetAnswerFields = () => {
     setTextAnswer('');
     setCode('');
     setCodeEvaluation(null);
+    setRunCodeResult(null);
     setShowTextFallback(false);
   };
 
@@ -188,6 +207,28 @@ function InterviewPage() {
     if (!textAnswer.trim()) return toast.error('Please type your answer.');
     submitAndProcess(textAnswer);
   };
+
+  const handleRunCode = async () => {
+    if (!code.trim()) return toast.error('Please write some code to run.');
+    setRunningCode(true);
+    setRunCodeResult(null);
+    try {
+      const result = await runCode(id, code, codeLanguage);
+      setRunCodeResult(result);
+      if (result.error) {
+        toast.error(result.error);
+      } else if (result.passed) {
+        toast.success(`✅ Sample tests passed: ${result.passedTests}/${result.totalTests}`);
+      } else {
+        toast(`⚠️ ${result.passedTests ?? 0}/${result.totalTests ?? 0} sample tests passed`);
+      }
+    } catch (error) {
+      toast.error('Failed to run code');
+    } finally {
+      setRunningCode(false);
+    }
+  };
+
 
   const handleSubmitCode = async () => {
     if (!code.trim()) return toast.error('Please write some code.');
@@ -332,9 +373,10 @@ function InterviewPage() {
         {currentAudio && (
           <AudioPlayer
             key={audioKey}
-            audioBase64={currentAudio}
+            audioSrc={currentAudio}
             autoPlay={true}
             onEnded={handleAudioEnded}
+            audioText={currentQuestion?.text || interviewerText}
           />
         )}
 
@@ -397,6 +439,7 @@ function InterviewPage() {
                       <VoiceRecorder
                         onRecordingComplete={handleRecordingComplete}
                         disabled={submitting}
+                        autoStart={true}
                       />
                     )}
                     {submitting && (
@@ -505,18 +548,66 @@ function InterviewPage() {
                       onChange={(val) => setCode(val || '')}
                       language={currentQuestion.codeLanguage || codeLanguage}
                     />
-                    <button
-                      className={`submit-code-btn ${submitting || !code.trim() ? 'submit-code-btn-disabled' : ''}`}
-                      onClick={handleSubmitCode}
-                      disabled={submitting || !code.trim()}
-                    >
-                      {submitting
-                        ? 'Evaluating...'
-                        : currentQuestion.codeType === 'fix'
-                        ? 'Submit Fixed Code'
-                        : 'Submit Solution'}
-                    </button>
+                    <div className="code-action-buttons">
+                      <button
+                        className={`run-code-btn ${runningCode || !code.trim() ? 'run-code-btn-disabled' : ''}`}
+                        onClick={handleRunCode}
+                        disabled={runningCode || submitting || !code.trim()}
+                      >
+                        {runningCode ? '▶ Running...' : '▶ Run Code'}
+                      </button>
+                      <button
+                        className={`submit-code-btn ${submitting || !code.trim() ? 'submit-code-btn-disabled' : ''}`}
+                        onClick={handleSubmitCode}
+                        disabled={submitting || runningCode || !code.trim()}
+                      >
+                        {submitting
+                          ? 'Evaluating...'
+                          : currentQuestion.codeType === 'fix'
+                          ? 'Submit Fixed Code'
+                          : 'Submit Solution'}
+                      </button>
+                    </div>
+
+                    {/* Phase 7: Test Results Panel */}
+                    {runCodeResult && (
+                      <div className={`code-results-panel ${runCodeResult.passed ? 'code-results-pass' : 'code-results-fail'}`}>
+                        <div className="code-results-header">
+                          {runCodeResult.error ? (
+                            <span className="code-results-status-fail">⚠ Execution Unavailable</span>
+                          ) : runCodeResult.passed ? (
+                            <span className="code-results-status-pass">✅ All Sample Tests Passed ({runCodeResult.passedTests}/{runCodeResult.totalTests})</span>
+                          ) : (
+                            <span className="code-results-status-fail">❌ {runCodeResult.passedTests ?? 0}/{runCodeResult.totalTests ?? 0} Sample Tests Passed</span>
+                          )}
+                          {runCodeResult.executionTime > 0 && (
+                            <span className="code-results-meta">
+                              ⏱ {runCodeResult.executionTime}s · 💾 {runCodeResult.memoryUsage} KB
+                            </span>
+                          )}
+                        </div>
+                        {runCodeResult.compileOutput && (
+                          <pre className="code-results-output code-results-error">
+                            <strong>Compile Error:</strong>{'\n'}{runCodeResult.compileOutput}
+                          </pre>
+                        )}
+                        {runCodeResult.stdout && (
+                          <pre className="code-results-output">
+                            <strong>Output:</strong>{'\n'}{runCodeResult.stdout}
+                          </pre>
+                        )}
+                        {runCodeResult.stderr && (
+                          <pre className="code-results-output code-results-error">
+                            <strong>Error:</strong>{'\n'}{runCodeResult.stderr}
+                          </pre>
+                        )}
+                        {runCodeResult.note && (
+                          <p className="code-results-note">{runCodeResult.note}</p>
+                        )}
+                      </div>
+                    )}
                   </>
+
                 ) : (
                   <div className="explain-answer-block">
                     <p className="explain-hint-text">

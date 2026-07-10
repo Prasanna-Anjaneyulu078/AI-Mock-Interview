@@ -26,9 +26,31 @@ public class CodeSubmission {
     private String code;
 
     private String language;
-    
+
     @Column(columnDefinition = "TEXT")
     private String feedback;
+
+    // ── Judge0 execution metrics (spec #10) ──
+    @Column(columnDefinition = "TEXT")
+    private String stdout;
+
+    @Column(columnDefinition = "TEXT")
+    private String stderr;
+
+    private Double executionTime;  // seconds
+    private Double memoryUsage;    // KB
+
+    @Column(name = "passed")
+    private Boolean passed;
+
+    private Integer passedTests;
+    private Integer totalTests;
+
+    @Column(columnDefinition = "TEXT")
+    private String status;
+
+    @Column(columnDefinition = "TEXT")
+    private String compileOutput;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

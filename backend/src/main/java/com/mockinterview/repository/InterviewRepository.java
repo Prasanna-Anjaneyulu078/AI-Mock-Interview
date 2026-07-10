@@ -11,5 +11,7 @@ import java.util.Optional;
 public interface InterviewRepository extends JpaRepository<Interview, Long> {
     List<Interview> findByUserId(Long userId);
     Optional<Interview> findByIdAndUserId(Long id, Long userId);
+    long countByUserId(Long userId);
+    long countByUserIdAndStatus(Long userId, String status);
     long deleteByUserId(Long userId);
 }

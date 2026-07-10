@@ -49,7 +49,7 @@ function LoginPage() {
         toast.success('Welcome back!');
       }
 
-      login(result.token, result.user);
+      login(result.token, result.refreshToken, result.user);
       navigate('/');
     } catch (error) {
       const message =
