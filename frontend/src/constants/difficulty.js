@@ -9,29 +9,22 @@
 
 const DIFFICULTY_LEVELS = [
   {
-    id: 'starter',
-    label: 'Starter',
+    id: 'BEGINNER',
+    label: 'Beginner (Fresher)',
     stars: 1,
-    questions: 7,
-    // 1 introduction (HR) + 1 HR + 3 Technical + 2 Project = 7 total.
-    // Difficulty drives question DEPTH (basic concepts), not just the count.
-    description: '7 questions — Beginner (1 intro + 1 HR, 3 Tech, 2 Project). Basic concepts.',
+    description: 'Adaptive Engine: Starts Easy → Adjusts to Medium.',
   },
   {
-    id: 'standard',
-    label: 'Standard',
+    id: 'INTERMEDIATE',
+    label: 'Intermediate (Experienced)',
     stars: 2,
-    questions: 15,
-    // 1 introduction (HR) + 3 HR + 6 Technical + 5 Project = 15 total.
-    description: '15 questions — Placement Prep (1 intro + 3 HR, 6 Tech, 5 Project). Practical & debugging.',
+    description: 'Adaptive Engine: Starts Medium → Adjusts to Hard.',
   },
   {
-    id: 'advanced',
-    label: 'Advanced',
+    id: 'ADVANCED',
+    label: 'Advanced (Expert)',
     stars: 3,
-    questions: 25,
-    // 1 introduction (HR) + 4 HR + 10 Technical + 10 Project = 25 total.
-    description: '25 questions — Product Companies (1 intro + 4 HR, 10 Tech, 10 Project). Architecture & scaling.',
+    description: 'Adaptive Engine: Consistently Hard. Deep architectural discussions.',
   },
 ];
 

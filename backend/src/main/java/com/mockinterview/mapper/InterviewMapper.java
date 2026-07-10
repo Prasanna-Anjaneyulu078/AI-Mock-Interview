@@ -17,6 +17,7 @@ public interface InterviewMapper {
     @Mapping(source = "questions", target = "questions")
     @Mapping(source = "messages", target = "messages")
     @Mapping(source = "lastAudio", target = "lastAudio")
+    @Mapping(source = "targetQuestionCount", target = "targetQuestions")
     InterviewResponse toDTO(Interview interview);
 }
 

@@ -4,12 +4,13 @@
 
 .dashboard-page {
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: var(--bg-primary);
   padding: 40px 20px;
+  transition: background-color 0.3s ease;
 }
 
 .dashboard-container {
-  max-width: 1100px;
+  width: min(100%, 1440px);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -35,7 +36,7 @@
 .dashboard-heading {
   font-family: 'Bree Serif', serif;
   font-size: 28px;
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 0;
   display: flex;
   align-items: center;
@@ -44,29 +45,35 @@
 
 .dashboard-heading-icon {
   font-size: 26px;
-  color: #2563eb;
+  color: var(--accent-color);
 }
 
 .dashboard-count-badge {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 13px;
   font-weight: 600;
-  color: #2563eb;
-  background-color: #dbeafe;
+  color: var(--accent-color);
+  background-color: var(--accent-light);
   padding: 4px 12px;
   border-radius: 12px;
 }
 
 .dashboard-refresh-btn {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 14px;
   font-weight: 600;
   padding: 8px 18px;
-  background-color: #ffffff;
-  color: #2563eb;
-  border: 2px solid #2563eb;
+  background-color: var(--surface);
+  color: var(--accent-color);
+  border: 2px solid var(--accent-color);
   border-radius: 6px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dashboard-refresh-btn:hover {
+  background-color: var(--accent-color);
+  color: #fff;
 }
 
 /* Sections */
@@ -79,7 +86,7 @@
 .dashboard-section-title {
   font-family: 'Bree Serif', serif;
   font-size: 20px;
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 0;
   display: flex;
   align-items: center;
@@ -88,32 +95,38 @@
 
 .dashboard-section-icon {
   font-size: 20px;
-  color: #2563eb;
+  color: var(--accent-color);
 }
 
 /* Overview cards */
 .dash-overview-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(clamp(200px, 20vw, 250px), 1fr));
   gap: 16px;
 }
 
 .dash-stat-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--card-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dash-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .dash-stat-label {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -121,39 +134,40 @@
 .dash-stat-value {
   font-family: 'Bree Serif', serif;
   font-size: 34px;
-  color: #0f172a;
+  color: var(--text-primary);
   line-height: 1;
 }
 
 .dash-stat-suffix {
   font-size: 18px;
   margin-left: 2px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 /* Skill insights */
 .dash-skill-cols {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(clamp(260px, 25vw, 320px), 1fr));
   gap: 16px;
 }
 
 .dash-skill-col {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 18px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--card-shadow);
 }
 
 .dash-skill-col-title {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 15px;
   font-weight: 700;
   margin: 0 0 12px;
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--text-primary);
 }
 
 .dash-skill-col-icon {
@@ -161,13 +175,13 @@
 }
 
 .dash-skill-col-title--strong {
-  color: #16a34a;
+  color: var(--success-color);
 }
 .dash-skill-col-title--weak {
-  color: #dc2626;
+  color: var(--danger-color);
 }
 .dash-skill-col-title--improve {
-  color: #d97706;
+  color: var(--warning-color);
 }
 
 .dash-pills {
@@ -177,50 +191,50 @@
 }
 
 .dash-pill {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 13px;
   font-weight: 500;
-  color: #334155;
-  background-color: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  color: var(--text-primary);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
   padding: 6px 12px;
   border-radius: 999px;
 }
 
 .dash-pill-empty {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   margin: 0;
 }
 
 /* Charts */
 .dash-charts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(clamp(300px, 35vw, 400px), 1fr));
   gap: 16px;
 }
 
 .dash-chart-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 18px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--card-shadow);
 }
 
 .dash-chart-title {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 15px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 0 0 12px;
 }
 
 .dash-chart-empty {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 14px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   text-align: center;
   padding: 40px 0;
   margin: 0;
@@ -228,17 +242,17 @@
 
 /* History table */
 .dash-history-table-wrap {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--card-shadow);
 }
 
 .dash-history-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
 }
 
 .dash-history-table th {
@@ -247,17 +261,17 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
-  background-color: #f8fafc;
+  color: var(--text-secondary);
+  background-color: var(--surface);
   padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
 }
 
 .dash-history-table td {
   font-size: 14px;
-  color: #334155;
+  color: var(--text-primary);
   padding: 12px 16px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border);
 }
 
 .dash-history-row {
@@ -266,11 +280,12 @@
 }
 
 .dash-history-row:hover {
-  background-color: #f1f5f9;
+  background-color: var(--surface);
 }
 
 .dash-history-score {
   font-weight: 700;
+  color: var(--accent-color);
 }
 
 /* Loading / error / empty states */
@@ -283,47 +298,47 @@
   justify-content: center;
   padding: 60px 20px;
   gap: 12px;
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px;
 }
 
 .dashboard-loading-text {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 16px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 0;
 }
 
 .dashboard-error-icon,
 .dashboard-empty-icon {
   font-size: 48px;
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 
 .dashboard-error-heading,
 .dashboard-empty-heading {
   font-family: 'Bree Serif', serif;
   font-size: 20px;
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .dashboard-error-desc,
 .dashboard-empty-desc {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 0;
   text-align: center;
 }
 
 .dashboard-start-btn {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 15px;
   font-weight: 600;
   padding: 12px 28px;
-  background-color: #2563eb;
+  background-color: var(--accent-color);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -331,6 +346,11 @@
   margin-top: 8px;
   text-decoration: none;
   display: inline-block;
+  transition: filter 0.2s ease;
+}
+
+.dashboard-start-btn:hover {
+  filter: brightness(1.1);
 }
 
 /* Responsive */

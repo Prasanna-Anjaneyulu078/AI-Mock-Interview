@@ -86,7 +86,8 @@ public class InterviewController {
     @PostMapping("/transcribe")
     @Operation(summary = "Transcribe audio to text")
     public ResponseEntity<ApiResponse<java.util.Map<String, String>>> transcribeOnly(@RequestParam("audio") org.springframework.web.multipart.MultipartFile audio) {
-        String text = interviewService.transcribeAudio(audio);
+        java.util.Map<String, Object> transcriptionData = interviewService.transcribeAudio(audio);
+        String text = (String) transcriptionData.getOrDefault("text", "");
         return ResponseEntity.ok(ApiResponse.success("Audio transcribed", java.util.Map.of("text", text)));
     }
 

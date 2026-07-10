@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.LinkedHashMap;
 
 @Service
 public class PersonalizedQuestionService {
@@ -29,13 +30,17 @@ public class PersonalizedQuestionService {
 
     private static final Map<String, String> LEVEL_DIFFICULTY = Map.of(
             "STARTER", "Easy",
+            "BEGINNER", "Easy",
             "STANDARD", "Medium",
+            "INTERMEDIATE", "Medium",
             "ADVANCED", "Hard"
     );
 
     private static final Map<String, String> LEVEL_GUIDANCE = Map.of(
             "STARTER", "Focus ONLY on fundamentals: definitions, core concepts, basic coding constructs, and simple entry-level interview questions.",
+            "BEGINNER", "Focus ONLY on fundamentals: definitions, core concepts, basic coding constructs, and simple entry-level interview questions.",
             "STANDARD", "Focus on real-world development scenarios, debugging questions, applied concepts, and practical implementation questions drawn from the candidate's own projects.",
+            "INTERMEDIATE", "Focus on real-world development scenarios, debugging questions, applied concepts, and practical implementation questions drawn from the candidate's own projects.",
             "ADVANCED", "Focus on system design, software architecture, scalability, performance optimization, and deep trade-off discussions."
     );
 
@@ -48,20 +53,21 @@ public class PersonalizedQuestionService {
     }
 
     public void generateAndSaveAIQuestions(Interview interview, String role, String resumeText,
-                                           String structuredProfile, int count, String level,
+                                           String structuredProfile, int hrCount, int techCount, 
+                                           int projCount, int codeCount, int interestCount, String level,
                                            Long userId, Long resumeId) {
         if (level == null) level = "STANDARD";
         String lvl = level.toUpperCase();
         String levelDifficulty = LEVEL_DIFFICULTY.getOrDefault(lvl, "Medium");
         String guidance = LEVEL_GUIDANCE.getOrDefault(lvl, LEVEL_GUIDANCE.get("STANDARD"));
-
-        int hrCount, techCount, projCount, codeCount;
-        switch (lvl) {
-            case "STARTER":  hrCount = 2; techCount = 2; projCount = 2; codeCount = 1; break;
-            case "ADVANCED": hrCount = 5; techCount = 8; projCount = 6; codeCount = 2; break;
-            case "STANDARD":
-            default:         hrCount = 3; techCount = 5; projCount = 5; codeCount = 2; break;
+        
+        if (interview.getInterviewMode() != null && interview.getInterviewMode().equals("INTEREST_BASED") 
+            && interview.getSelectedInterests() != null) {
+            guidance += "\nCRITICAL CONSTRAINT: ONLY ask questions directly related to the following interests: " + interview.getSelectedInterests();
         }
+        
+        int count = hrCount + techCount + projCount + codeCount + interestCount;
+        if (count == 0) return;
 
         Set<String> seen = new HashSet<>();
         List<Question> past = new ArrayList<>();
@@ -88,7 +94,7 @@ public class PersonalizedQuestionService {
             String aiResponse;
             try {
                 aiResponse = aiProvider.generateQuestions(role, resumeContext, guidance, levelDifficulty,
-                        hrCount, techCount, projCount, count, avoidList);
+                        hrCount, techCount, projCount, codeCount, interestCount, interview.getSelectedInterests(), count, avoidList);
             } catch (Exception e) {
                 System.err.println("⚠️ AI failed to generate questions: " + e.getMessage());
                 break;
@@ -113,23 +119,22 @@ public class PersonalizedQuestionService {
             avoidList = accepted.stream().map(Question::getQuestionText).collect(Collectors.joining("\n- "));
         }
 
-        boolean savedFromAI = false;
         try {
             // Phase 5: guarantee minimum coding questions
             long codeQsInAccepted = accepted.stream()
                     .filter(q -> Boolean.TRUE.equals(q.getIsCodeQuestion())).count();
             if (codeQsInAccepted < minCode) {
-                addFallbackCodingQuestions(interview, accepted, (int)(minCode - codeQsInAccepted), role, levelDifficulty, seen);
+                String genLang = interview.getCodingLanguage() != null ? interview.getCodingLanguage() : "java";
+                addFallbackCodingQuestions(interview, accepted, (int)(minCode - codeQsInAccepted), role, levelDifficulty, seen, genLang);
             }
 
             for (Question q : accepted) questionRepository.save(q);
-            savedFromAI = !accepted.isEmpty();
         } catch (Exception e) {
             System.err.println("⚠️ Failed to save AI questions for interview " + interview.getId() + ": " + e.getMessage());
         }
 
-        if (!savedFromAI) {
-            saveFallbackQuestions(interview, count);
+        if (accepted.size() < count) {
+            forceSaveFallbackQuestions(interview, count - accepted.size(), seen);
         }
     }
 
@@ -180,6 +185,22 @@ public class PersonalizedQuestionService {
         boolean isCode = qMap.get("isCodeQuestion") instanceof Boolean b && b;
         String idealAnswer = qMap.get("idealAnswer") instanceof String s ? s : "";
         String explanation = qMap.get("explanation") instanceof String s ? s : "";
+
+        // Parse coding problem detail fields (Issue #2)
+        String title = qMap.get("title") instanceof String s ? s : null;
+        String problemDescription = qMap.get("problemDescription") instanceof String s ? s : null;
+        String exampleInput = qMap.get("exampleInput") instanceof String s ? s : null;
+        String exampleOutput = qMap.get("exampleOutput") instanceof String s ? s : null;
+        String constraints = qMap.get("constraints") instanceof String s ? s : null;
+        String starterCode = firstNonBlank(qMap, "starterCode", "codeSnippet");
+        String tags = qMap.get("tags") instanceof String s ? s : null;
+        String timeComplexity = qMap.get("timeComplexity") instanceof String s ? s : null;
+        String codeType = qMap.get("codeType") instanceof String s ? s : (isCode ? "write" : null);
+        String codeLanguage = firstNonBlank(qMap, "codeLanguage", "language");
+        if (codeLanguage == null && isCode && interview.getCodingLanguage() != null) {
+            codeLanguage = interview.getCodingLanguage();
+        }
+
         Question q = Question.builder()
                 .interview(interview)
                 .questionText(text.trim())
@@ -189,6 +210,16 @@ public class PersonalizedQuestionService {
                 .explanation(explanation)
                 .difficulty(levelDifficulty)
                 .generatedByAI(true)
+                .title(title)
+                .problemDescription(problemDescription)
+                .exampleInput(exampleInput)
+                .exampleOutput(exampleOutput)
+                .constraints(constraints)
+                .starterCode(starterCode)
+                .tags(tags)
+                .timeComplexity(timeComplexity)
+                .codeType(codeType)
+                .codeLanguage(codeLanguage)
                 .build();
 
         List<TestCase> testCases = parseTestCases(qMap);
@@ -230,8 +261,10 @@ public class PersonalizedQuestionService {
         return null;
     }
 
-    private void saveFallbackQuestions(Interview interview, int count) {
-        Map<String, String[]> fallbacks = new HashMap<>();
+    public void forceSaveFallbackQuestions(Interview interview, int needed, Set<String> seen) {
+        if (seen == null) seen = new HashSet<>();
+        
+        Map<String, String[]> fallbacks = new LinkedHashMap<>();
         fallbacks.put("How do you approach debugging a complex production issue?", new String[]{"problem-solving", "false"});
         fallbacks.put("Describe a challenging technical problem you solved recently and your solution.", new String[]{"behavioral", "false"});
         fallbacks.put("Explain a design decision you are proud of from a past project.", new String[]{"project", "false"});
@@ -242,19 +275,36 @@ public class PersonalizedQuestionService {
         fallbacks.put("How do you stay current with new technologies and industry trends?", new String[]{"behavioral", "false"});
         fallbacks.put("What is your process for writing and maintaining unit tests?", new String[]{"technical", "false"});
         fallbacks.put("Give an example of when you had to meet a tight deadline. How did you manage it?", new String[]{"situational", "false"});
+        
+        // Expanded fallbacks for LONG interviews
+        fallbacks.put("Tell me about a time you had to learn a new technology quickly.", new String[]{"behavioral", "false"});
+        fallbacks.put("How do you prioritize your work when faced with multiple urgent tasks?", new String[]{"situational", "false"});
+        fallbacks.put("Describe a time when a project you were working on failed. What did you learn?", new String[]{"behavioral", "false"});
+        fallbacks.put("How do you balance technical debt with the need to ship features quickly?", new String[]{"technical", "false"});
+        fallbacks.put("What is your approach to code reviews, both giving and receiving feedback?", new String[]{"technical", "false"});
+        fallbacks.put("Explain the most complex architecture you have designed or worked on.", new String[]{"project", "false"});
+        fallbacks.put("How do you handle shifting requirements from stakeholders?", new String[]{"situational", "false"});
+        fallbacks.put("Tell me about a time you mentored a junior team member.", new String[]{"behavioral", "false"});
+        fallbacks.put("Describe a situation where you had to compromise on a technical implementation.", new String[]{"behavioral", "false"});
+        fallbacks.put("What strategies do you use to ensure application security during development?", new String[]{"technical", "false"});
 
-        int i = 0;
+        int added = 0;
         for (Map.Entry<String, String[]> fb : fallbacks.entrySet()) {
-            if (i >= count) break;
+            if (added >= needed) break;
+            
+            String text = fb.getKey();
+            if (TextSimilarity.isDuplicate(text, seen, DEDUP_THRESHOLD)) continue;
+            
             Question q = Question.builder()
                     .interview(interview)
-                    .questionText(fb.getKey())
+                    .questionText(text)
                     .type(fb.getValue()[0])
                     .isCodeQuestion(Boolean.parseBoolean(fb.getValue()[1]))
                     .generatedByAI(false)
                     .build();
             questionRepository.save(q);
-            i++;
+            seen.add(TextSimilarity.normalize(text));
+            added++;
         }
     }
 
@@ -262,33 +312,88 @@ public class PersonalizedQuestionService {
      * Phase 5: Adds N coding questions to the accepted list when the AI didn't generate
      * enough. Uses pre-defined challenges covering common algorithm patterns.
      */
+    private static final Object[][] CODING_FALLBACK_PROBLEMS = {
+        {
+            "Write a function to find the two numbers in an array that sum to a target value.",
+            "Two Sum",
+            "Given an array of integers nums and an integer target, return the indices of the two numbers that add up to target. You may assume exactly one solution exists and you may not use the same element twice.",
+            "nums = [2, 7, 11, 15], target = 9",
+            "[0, 1]  (because nums[0] + nums[1] = 2 + 7 = 9)",
+            "2 <= nums.length <= 10^4\n-10^9 <= nums[i] <= 10^9\nExactly one valid answer exists.",
+            "function twoSum(nums, target) {\n  // Your solution here\n}",
+            "Array, Hash Map",
+            "O(n)"
+        },
+        {
+            "Implement a function that reverses a linked list iteratively.",
+            "Reverse Linked List",
+            "Given the head of a singly linked list, reverse the list and return the reversed list. The list node has two properties: val (integer) and next (pointer to next node or null).",
+            "head = [1, 2, 3, 4, 5]",
+            "[5, 4, 3, 2, 1]",
+            "The number of nodes is in range [0, 5000]\n-5000 <= Node.val <= 5000",
+            "function reverseList(head) {\n  // Your solution here\n}",
+            "Linked List, Iteration",
+            "O(n)"
+        },
+        {
+            "Write a function to determine if a string is a valid palindrome, ignoring non-alphanumeric characters and case.",
+            "Valid Palindrome",
+            "A phrase is a palindrome if, after converting all uppercase letters to lowercase and removing all non-alphanumeric characters, it reads the same forward and backward. Given a string s, return true if it is a palindrome, or false otherwise.",
+            "s = \"A man, a plan, a canal: Panama\"",
+            "true",
+            "1 <= s.length <= 2 * 10^5\ns consists only of printable ASCII characters.",
+            "function isPalindrome(s) {\n  // Your solution here\n}",
+            "String, Two Pointers",
+            "O(n)"
+        },
+        {
+            "Given a binary tree, write a function to find its maximum depth.",
+            "Maximum Depth of Binary Tree",
+            "Given the root of a binary tree, return its maximum depth. Maximum depth is the number of nodes along the longest path from the root node down to the farthest leaf node.",
+            "root = [3, 9, 20, null, null, 15, 7]",
+            "3",
+            "The number of nodes is in [0, 10^4]\n-100 <= Node.val <= 100",
+            "function maxDepth(root) {\n  // Your solution here\n}",
+            "Tree, DFS, BFS",
+            "O(n)"
+        },
+        {
+            "Find the length of the longest substring without repeating characters.",
+            "Longest Substring Without Repeating Characters",
+            "Given a string s, find the length of the longest substring without repeating characters. A substring is a contiguous sequence of characters within the string.",
+            "s = \"abcabcbb\"",
+            "3  (the substring 'abc' has length 3)",
+            "0 <= s.length <= 5 * 10^4\ns consists of English letters, digits, symbols and spaces.",
+            "function lengthOfLongestSubstring(s) {\n  // Your solution here\n}",
+            "Hash Map, Sliding Window",
+            "O(n)"
+        }
+    };
+
     private void addFallbackCodingQuestions(Interview interview, List<Question> accepted,
                                              int needed, String role, String difficulty,
-                                             Set<String> seen) {
-        String[][] codingFallbacks = {
-            {"Write a function to find the two numbers in an array that sum to a target value. Return their indices.",
-             "coding", "python"},
-            {"Implement a function that reverses a linked list iteratively.",
-             "coding", "java"},
-            {"Write a function to determine if a string is a palindrome, ignoring spaces and punctuation.",
-             "coding", "javascript"},
-            {"Given a binary tree, write a function to find its maximum depth.",
-             "coding", "python"},
-            {"Implement a function that finds all unique pairs in an array whose sum equals a given target.",
-             "coding", "java"},
-        };
+                                             Set<String> seen, String defaultLanguage) {
+        String lang = defaultLanguage != null ? defaultLanguage : "javascript";
         int added = 0;
-        for (String[] fb : codingFallbacks) {
+        for (Object[] fb : CODING_FALLBACK_PROBLEMS) {
             if (added >= needed) break;
-            String text = fb[0];
+            String text = (String) fb[0];
             if (TextSimilarity.isDuplicate(text, seen, DEDUP_THRESHOLD)) continue;
             Question q = Question.builder()
                     .interview(interview)
                     .questionText(text)
+                    .title((String) fb[1])
+                    .problemDescription((String) fb[2])
+                    .exampleInput((String) fb[3])
+                    .exampleOutput((String) fb[4])
+                    .constraints((String) fb[5])
+                    .starterCode((String) fb[6])
+                    .tags((String) fb[7])
+                    .timeComplexity((String) fb[8])
                     .type("coding")
                     .isCodeQuestion(true)
                     .codeType("write")
-                    .codeLanguage(fb[2])
+                    .codeLanguage(lang)
                     .difficulty(difficulty)
                     .generatedByAI(false)
                     .build();

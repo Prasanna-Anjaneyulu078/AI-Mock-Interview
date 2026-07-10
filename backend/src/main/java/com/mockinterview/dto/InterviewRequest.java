@@ -18,4 +18,10 @@ public class InterviewRequest {
     // Murf voice selection (populated by the setup UI voice picker)
     private String voiceId;
     private String style;
+
+    // Next-Gen additions
+    private String interviewMode;
+    private String codingLanguage;
+    private String selectedInterests;
+    private Integer targetQuestionCount;
 }

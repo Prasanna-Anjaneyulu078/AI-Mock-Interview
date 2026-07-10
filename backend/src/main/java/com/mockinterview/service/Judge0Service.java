@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -69,10 +71,13 @@ public class Judge0Service {
     }
 
     public Judge0Service(@Qualifier("judge0RestTemplate") RestTemplate restTemplate,
-                         Judge0Properties judge0Properties) {
+                         Judge0Properties judge0Properties,
+                         MeterRegistry meterRegistry) {
         this.restTemplate = restTemplate;
         this.baseUrl = judge0Properties.getUrl();
         this.apiKey = judge0Properties.getApiKey();
+        this.circuitBreaker.setMetrics(meterRegistry, "judge0");
+        
         // Extract the host portion for the X-RapidAPI-Host header (e.g. "judge0-ce.p.rapidapi.com")
         String host = "";
         try {
@@ -146,6 +151,8 @@ public class Judge0Service {
         double maxMem = 0.0;
         StringBuilder failureDetail = new StringBuilder();
         boolean transientFailure = false;
+        
+        List<Judge0Result.TestCaseDetail> testCaseDetails = new ArrayList<>();
 
         for (TestCase tc : ordered) {
             Judge0Run run = runOne(code, langId, tc.getInput());
@@ -171,6 +178,17 @@ public class Judge0Service {
                     failureDetail.append(" | stderr: ").append(run.stderr());
                 }
             }
+
+            Judge0Result.TestCaseDetail detail = Judge0Result.TestCaseDetail.builder()
+                .name(tc.getName() != null ? tc.getName() : "Test Case " + (testCaseDetails.size() + 1))
+                .passed(ok)
+                .isHidden(tc.isHidden())
+                .expectedOutput(tc.isHidden() ? "Hidden" : tc.getExpectedOutput())
+                .actualOutput(tc.isHidden() ? "Hidden" : run.stdout())
+                .time(run.time())
+                .memory(run.memory())
+                .build();
+            testCaseDetails.add(detail);
         }
 
         result.setTotalTests(ordered.size());
@@ -179,9 +197,13 @@ public class Judge0Service {
         result.setExecutionTime(maxTime);
         result.setMemoryUsage(maxMem);
         result.setStderr(failureDetail.toString());
+        result.setTestCaseResults(testCaseDetails);
 
         if (transientFailure) {
             circuitBreaker.onFailure();
+            if (testCaseDetails.isEmpty()) {
+                return null;
+            }
         } else {
             circuitBreaker.onSuccess();
         }
@@ -228,7 +250,9 @@ public class Judge0Service {
             if (httpCode >= 400 && httpCode < 500 && httpCode != HttpStatus.TOO_MANY_REQUESTS.value()) {
                 throw new NonTransientJudge0Exception("Non-retryable client error: " + httpCode, hse);
             }
-            throw hse;
+            throw new RuntimeException("Judge0 Server Error: " + httpCode, hse);
+        } catch (Exception e) {
+            throw new RuntimeException("Judge0 Execution Failed", e);
         }
     }
 

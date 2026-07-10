@@ -4,12 +4,13 @@
 
 .history-page {
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: var(--bg-primary);
   padding: 40px 20px;
+  transition: background-color 0.3s ease;
 }
 
 .history-container {
-  max-width: 1100px;
+  width: min(100%, 1100px);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -35,16 +36,16 @@
 .history-heading {
   font-family: "Bree Serif", serif;
   font-size: 28px;
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .history-count-badge {
-  font-family: "Roboto", sans-serif;
+  font-family: 'Inter', "Roboto", sans-serif;
   font-size: 13px;
   font-weight: 600;
-  color: #2563eb;
-  background-color: #dbeafe;
+  color: var(--accent-color);
+  background-color: var(--accent-light);
   padding: 4px 12px;
   border-radius: 12px;
 }
@@ -53,14 +54,20 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: "Roboto", sans-serif;
+  font-family: 'Inter', "Roboto", sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: #dc2626;
+  color: var(--danger-color);
   background: none;
   border: none;
   cursor: pointer;
   padding: 6px 12px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.history-clear-btn:hover {
+  background-color: var(--danger-light);
 }
 
 .history-clear-icon {
@@ -78,9 +85,9 @@
 }
 
 .history-loading-text {
-  font-family: "Roboto", sans-serif;
+  font-family: 'Inter', "Roboto", sans-serif;
   font-size: 16px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -96,40 +103,45 @@
 
 .history-empty-icon {
   font-size: 48px;
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 
 .history-empty-heading {
   font-family: "Bree Serif", serif;
   font-size: 20px;
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .history-empty-desc {
-  font-family: "Roboto", sans-serif;
+  font-family: 'Inter', "Roboto", sans-serif;
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 0;
 }
 
 .history-start-btn {
-  font-family: "Roboto", sans-serif;
+  font-family: 'Inter', "Roboto", sans-serif;
   font-size: 15px;
   font-weight: 600;
   padding: 12px 28px;
-  background-color: #2563eb;
+  background-color: var(--accent-color);
   color: #ffffff;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   margin-top: 8px;
+  transition: filter 0.2s ease;
+}
+
+.history-start-btn:hover {
+  filter: brightness(1.1);
 }
 
 /* Grid */
 .history-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(clamp(250px, 25vw, 300px), 1fr));
   gap: 20px;
 }
 
@@ -143,26 +155,34 @@
 }
 
 .history-page-btn {
-  font-family: "Roboto", sans-serif;
+  font-family: 'Inter', "Roboto", sans-serif;
   font-size: 14px;
   font-weight: 600;
   padding: 8px 20px;
-  background-color: #ffffff;
-  color: #2563eb;
-  border: 2px solid #2563eb;
+  background-color: var(--surface);
+  color: var(--accent-color);
+  border: 2px solid var(--accent-color);
   border-radius: 6px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.history-page-btn:hover:not(.history-page-btn-disabled) {
+  background-color: var(--accent-color);
+  color: #ffffff;
 }
 
 .history-page-btn-disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  border-color: var(--text-secondary);
+  color: var(--text-secondary);
 }
 
 .history-page-info {
-  font-family: "Roboto", sans-serif;
+  font-family: 'Inter', "Roboto", sans-serif;
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 /* Responsive */

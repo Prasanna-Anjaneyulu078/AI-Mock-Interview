@@ -12,6 +12,7 @@ public class InterviewResponse {
     private String greeting;
     private Integer currentQuestion;
     private Integer totalQuestions;
+    private Integer targetQuestions;
     private QuestionDTO question;
     private String audio; // base64 encoded audio or URL
 

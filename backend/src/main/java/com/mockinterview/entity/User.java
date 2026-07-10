@@ -57,4 +57,10 @@ public class User {
     @EqualsAndHashCode.Exclude
     @Builder.Default
     private List<InterviewHistory> interviewHistories = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Builder.Default
+    private List<UserInterest> interests = new ArrayList<>();
 }

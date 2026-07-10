@@ -33,9 +33,9 @@ public abstract class AbstractLLMProvider implements AIProvider {
     );
 
     private static final Map<String, String> LEVEL_STYLE = Map.of(
-            "Easy", "Style: short, direct recall/understanding questions.",
-            "Medium", "Style: scenario and applied questions.",
-            "Hard", "Style: open-ended design and trade-off discussions."
+            "BEGINNER", "Style: short, direct recall/understanding questions.",
+            "INTERMEDIATE", "Style: scenario and applied questions.",
+            "ADVANCED", "Style: open-ended design and trade-off discussions."
     );
 
     private static String resolveRoleFocus(String role) {
@@ -49,7 +49,7 @@ public abstract class AbstractLLMProvider implements AIProvider {
 
     @Override
     public String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty,
-                                    int hr, int tech, int proj, int count, String avoidList) {
+                                    int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) {
         StringBuilder sb = new StringBuilder();
         sb.append("You are an expert technical interviewer for a ")
           .append(role != null ? role : "Software").append(" candidate at the ")
@@ -69,10 +69,26 @@ public abstract class AbstractLLMProvider implements AIProvider {
         sb.append("2. Generate exactly ").append(hr).append(" behavioral/HR questions (category: \"behavioral\").\n");
         sb.append("3. Generate exactly ").append(tech).append(" technical questions (category: \"technical\").\n");
         sb.append("4. Generate exactly ").append(proj).append(" project/experience questions (category: \"project\").\n");
-        sb.append("5. Each element MUST have: \"question\", \"category\", \"difficulty\" (exactly \"")
-          .append(levelDifficulty).append("\"), \"isCodeQuestion\" (boolean), \"idealAnswer\", \"explanation\".\n");
-        sb.append("6. Reference the candidate's actual skills/projects. For 1-2 technical/project questions include ")
-          .append("\"isCodeQuestion\": true and a \"testCases\" array (up to 3 cases with input/expectedOutput/hidden).\n");
+        sb.append("5. Generate exactly ").append(codeCount).append(" pure coding questions (category: \"coding\").\n");
+        if (interestCount > 0 && selectedInterests != null && !selectedInterests.isBlank()) {
+            sb.append("6. Generate exactly ").append(interestCount).append(" interest-based technical questions (category: \"technical\"). Focus these ONLY on: ").append(selectedInterests).append(".\n");
+        }
+        sb.append("7. For NON-coding questions each element MUST have:\n");
+        sb.append("   \"question\", \"category\", \"difficulty\" (exactly \"").append(levelDifficulty).append("\"), \"isCodeQuestion\": false, \"idealAnswer\", \"explanation\".\n");
+        sb.append("8. For CODING questions each element MUST have:\n");
+        sb.append("   \"question\" (short prompt), \"category\": \"coding\", \"difficulty\", \"isCodeQuestion\": true,\n");
+        sb.append("   \"title\" (short display name e.g. \"Two Sum\"),\n");
+        sb.append("   \"problemDescription\" (full 2-4 sentence problem statement),\n");
+        sb.append("   \"exampleInput\" (concrete input example as a string),\n");
+        sb.append("   \"exampleOutput\" (expected output for that input),\n");
+        sb.append("   \"constraints\" (1-3 bullet constraints e.g. \"1 <= n <= 10^4, -10^9 <= nums[i] <= 10^9\"),\n");
+        sb.append("   \"starterCode\" (function signature in ").append(role != null && role.toLowerCase().contains("python") ? "python" : "javascript").append("),\n");
+        sb.append("   \"tags\" (comma-separated topic tags e.g. \"Array, Hash Map\"),\n");
+        sb.append("   \"timeComplexity\" (expected optimal e.g. \"O(n)\"),\n");
+        sb.append("   \"idealAnswer\" (brief model solution explanation),\n");
+        sb.append("   \"codeType\": \"write\",\n");
+        sb.append("   \"testCases\" (array of 3-5 cases: [{\"input\":\"\",\"expectedOutput\":\"\",\"hidden\":false/true}]).\n");
+        sb.append("9. Reference the candidate's actual skills/projects.\n");
         sb.append("Generate exactly ").append(count).append(" questions now:");
         return generateContent(sb.toString());
     }
@@ -142,13 +158,17 @@ public abstract class AbstractLLMProvider implements AIProvider {
                 + "Provide a holistic evaluation. Return ONLY raw JSON (no markdown):\n"
                 + "{\"overallScore\": <0-100>,\n"
                 + " \"categoryScores\": {\n"
-                + "   \"communicationSkills\": {\"score\": <0-100>, \"comment\": \"<c>\"},\n"
-                + "   \"technicalKnowledge\": {\"score\": <0-100>, \"comment\": \"<c>\"},\n"
-                + "   \"problemSolving\": {\"score\": <0-100>, \"comment\": \"<c>\"},\n"
-                + "   \"codeQuality\": {\"score\": <0-100>, \"comment\": \"<c>\"},\n"
-                + "   \"confidence\": {\"score\": <0-100>, \"comment\": \"<c>\"}},\n"
+                + "   \"communicationScore\": {\"score\": <0-100>, \"comment\": \"<c>\"},\n"
+                + "   \"technicalScore\": {\"score\": <0-100>, \"comment\": \"<c>\"},\n"
+                + "   \"problemSolvingScore\": {\"score\": <0-100>, \"comment\": \"<c>\"},\n"
+                + "   \"codingScore\": {\"score\": <0-100>, \"comment\": \"<c>\"},\n"
+                + "   \"confidenceScore\": {\"score\": <0-100>, \"comment\": \"<c>\"}\n"
+                + " },\n"
                 + " \"strengths\": [\"<s1>\",\"<s2>\"], \"areasOfImprovement\": [\"<i1>\",\"<i2>\"],\n"
-                + " \"recommendedTopics\": [\"<t1>\",\"<t2>\"], \"weakConcepts\": [\"<wc1>\"], \"strongConcepts\": [\"<sc1>\"],\n"
+                + " \"missedConcepts\": [\"<m1>\",\"<m2>\"], \"recommendedLearningTopics\": [\"<t1>\",\"<t2>\"],\n"
+                + " \"weakConcepts\": [\"<wc1>\"], \"strongConcepts\": [\"<sc1>\"],\n"
+                + " \"codingPerformance\": \"<assessment of coding skills, or N/A>\",\n"
+                + " \"careerGuidance\": \"<tips for next career steps>\",\n"
                 + " \"interviewSummary\": \"<3-4 sentence holistic assessment>\",\n"
                 + " \"hiringRecommendation\": \"<Hire / No Hire / Borderline>\",\n"
                 + " \"category\": \"<Excellent|Good|Average|Needs Improvement>\",\n"

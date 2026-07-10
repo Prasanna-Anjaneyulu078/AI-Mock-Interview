@@ -22,11 +22,23 @@ public class AnalyticsService {
 
     private final InterviewHistoryRepository historyRepository;
     private final InterviewRepository interviewRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final com.mockinterview.repository.CodeSubmissionRepository codeSubmissionRepository;
+    private final com.mockinterview.repository.CodingSubmissionRepository codingSubmissionRepository;
+    private final com.mockinterview.repository.CodingResultRepository codingResultRepository;
 
     public AnalyticsService(InterviewHistoryRepository historyRepository,
-                            InterviewRepository interviewRepository) {
+                            InterviewRepository interviewRepository,
+                            com.fasterxml.jackson.databind.ObjectMapper objectMapper,
+                            com.mockinterview.repository.CodeSubmissionRepository codeSubmissionRepository,
+                            com.mockinterview.repository.CodingSubmissionRepository codingSubmissionRepository,
+                            com.mockinterview.repository.CodingResultRepository codingResultRepository) {
         this.historyRepository = historyRepository;
         this.interviewRepository = interviewRepository;
+        this.objectMapper = objectMapper;
+        this.codeSubmissionRepository = codeSubmissionRepository;
+        this.codingSubmissionRepository = codingSubmissionRepository;
+        this.codingResultRepository = codingResultRepository;
     }
 
     @Transactional(readOnly = true)
@@ -49,12 +61,111 @@ public class AnalyticsService {
         long completed = interviewRepository.countByUserIdAndStatus(userId, "completed");
         double completionRate = total > 0 ? (completed * 100.0 / total) : 0.0;
 
+        // Calculate radar data (Strengths & Weaknesses via categories)
+        List<com.mockinterview.entity.Interview> userInterviews = interviewRepository.findByUserId(userId);
+        double comm = 0, tech = 0, proj = 0, code = 0, conf = 0;
+        int countWithScores = 0;
+        int passCount = 0;
+        int evaluatedCount = 0;
+        
+        for (com.mockinterview.entity.Interview inv : userInterviews) {
+            if (inv.getFeedback() != null && !inv.getFeedback().isBlank()) {
+                try {
+                    Map<String, Object> fb = (Map<String, Object>) objectMapper.readValue(inv.getFeedback(), Map.class);
+                    Map<String, Object> cats = (Map<String, Object>) fb.get("categoryScores");
+                    if (cats != null) {
+                        comm += getScoreFromCat(cats, "communicationScore", "communicationSkills");
+                        tech += getScoreFromCat(cats, "technicalScore", "technicalKnowledge");
+                        proj += getScoreFromCat(cats, "problemSolvingScore", "projectScore");
+                        code += getScoreFromCat(cats, "codingScore", "codeQuality");
+                        conf += getScoreFromCat(cats, "confidenceScore", "confidence");
+                        countWithScores++;
+                    }
+                    if (Boolean.TRUE.equals(fb.get("evaluated"))) {
+                        evaluatedCount++;
+                        String hr = (String) fb.get("hiringRecommendation");
+                        if ("Hire".equalsIgnoreCase(hr) || "Borderline".equalsIgnoreCase(hr)) {
+                            passCount++;
+                        }
+                    }
+                } catch (Exception e) {
+                    // Ignore parsing errors for individual interviews
+                }
+            }
+        }
+
+        double passRate = evaluatedCount > 0 ? (passCount * 100.0 / evaluatedCount) : 0.0;
+
+        List<AnalyticsSummaryDTO.RadarPoint> radarData = new ArrayList<>();
+        if (countWithScores > 0) {
+            radarData.add(new AnalyticsSummaryDTO.RadarPoint("Communication", round1(comm / countWithScores)));
+            radarData.add(new AnalyticsSummaryDTO.RadarPoint("Technical", round1(tech / countWithScores)));
+            radarData.add(new AnalyticsSummaryDTO.RadarPoint("Project", round1(proj / countWithScores)));
+            radarData.add(new AnalyticsSummaryDTO.RadarPoint("Code Quality", round1(code / countWithScores)));
+            radarData.add(new AnalyticsSummaryDTO.RadarPoint("Confidence", round1(conf / countWithScores)));
+        }
+
+        // Calculate Language proficiency and Coding Accuracy
+        List<Long> interviewIds = userInterviews.stream().map(com.mockinterview.entity.Interview::getId).collect(Collectors.toList());
+        Map<String, Integer> languageCounts = new HashMap<>();
+        long totalTests = 0;
+        long passedTests = 0;
+
+        for (Long iId : interviewIds) {
+            // Legacy CodeSubmissions
+            List<com.mockinterview.entity.CodeSubmission> subs = codeSubmissionRepository.findByInterviewId(iId);
+            for (com.mockinterview.entity.CodeSubmission sub : subs) {
+                if (sub.getLanguage() != null) {
+                    languageCounts.merge(sub.getLanguage().toLowerCase(), 1, Integer::sum);
+                }
+                if (sub.getTotalTests() != null && sub.getTotalTests() > 0) {
+                    totalTests += sub.getTotalTests();
+                    passedTests += (sub.getPassedTests() != null ? sub.getPassedTests() : 0);
+                }
+            }
+            // New CodingSubmissions
+            List<com.mockinterview.entity.CodingSubmission> newSubs = codingSubmissionRepository.findByInterviewId(iId);
+            for (com.mockinterview.entity.CodingSubmission sub : newSubs) {
+                if (sub.getLanguage() != null) {
+                    languageCounts.merge(sub.getLanguage().toLowerCase(), 1, Integer::sum);
+                }
+                com.mockinterview.entity.CodingResult res = codingResultRepository.findBySubmissionId(sub.getId()).orElse(null);
+                if (res != null && res.getTotalTests() != null && res.getTotalTests() > 0) {
+                    totalTests += res.getTotalTests();
+                    passedTests += (res.getPassedTests() != null ? res.getPassedTests() : 0);
+                }
+            }
+        }
+
+        double codingAccuracy = totalTests > 0 ? (passedTests * 100.0 / totalTests) : 0.0;
+
+        List<AnalyticsSummaryDTO.BarPoint> languageData = languageCounts.entrySet().stream()
+                .map(e -> new AnalyticsSummaryDTO.BarPoint(e.getKey(), e.getValue()))
+                .sorted((a, b) -> Integer.compare(b.getCount(), a.getCount())) // Descending
+                .collect(Collectors.toList());
+
         return AnalyticsSummaryDTO.builder()
                 .totalInterviews((int) total)
                 .averageScore(round1(average))
                 .bestScore(round1(best))
                 .completionRate(round1(completionRate))
+                .codingAccuracy(round1(codingAccuracy))
+                .passRate(round1(passRate))
+                .radarData(radarData)
+                .languageData(languageData)
                 .build();
+    }
+
+    private double getScoreFromCat(Map<String, Object> cats, String key, String fallbackKey) {
+        Object cat = cats.get(key);
+        if (cat == null) cat = cats.get(fallbackKey);
+        if (cat instanceof Map) {
+            Object score = ((Map<?, ?>) cat).get("score");
+            if (score instanceof Number) {
+                return ((Number) score).doubleValue();
+            }
+        }
+        return 0.0;
     }
 
     @Transactional(readOnly = true)
@@ -81,15 +192,25 @@ public class AnalyticsService {
         List<AnalyticsProgressDTO.TrendPoint> performanceTrend = new ArrayList<>();
         List<AnalyticsProgressDTO.SkillGrowthPoint> skillGrowthTrend = new ArrayList<>();
         List<AnalyticsProgressDTO.HistorySummary> history = new ArrayList<>();
+        List<AnalyticsProgressDTO.TrendPoint> difficultyProgression = new ArrayList<>();
+        
+        Map<String, List<Double>> monthScores = new TreeMap<>();
 
         Set<String> seenStrong = new LinkedHashSet<>();
         Set<String> seenWeak = new LinkedHashSet<>();
+
+        Map<String, Integer> difficultyMap = Map.of("BEGINNER", 1, "INTERMEDIATE", 2, "ADVANCED", 3);
 
         for (InterviewHistory h : histories) {
             String label = h.getCreatedAt() != null ? h.getCreatedAt().toLocalDate().toString() : "";
             Double score = h.getTotalScore();
 
             performanceTrend.add(new AnalyticsProgressDTO.TrendPoint(label, score));
+
+            if (h.getCreatedAt() != null && score != null) {
+                String monthLabel = h.getCreatedAt().getYear() + "-" + String.format("%02d", h.getCreatedAt().getMonthValue());
+                monthScores.computeIfAbsent(monthLabel, k -> new ArrayList<>()).add(score);
+            }
 
             for (String s : parseSkills(h.getStrongSkills())) seenStrong.add(s.toLowerCase());
             for (String s : parseSkills(h.getWeakSkills())) seenWeak.add(s.toLowerCase());
@@ -100,15 +221,26 @@ public class AnalyticsService {
             if (h.getInterview() != null) {
                 type = h.getInterview().getInterviewType();
                 difficulty = h.getInterview().getDifficulty();
+                if (difficulty != null) {
+                    difficultyProgression.add(new AnalyticsProgressDTO.TrendPoint(label, (double) difficultyMap.getOrDefault(difficulty.toUpperCase(), 2)));
+                }
             }
             history.add(new AnalyticsProgressDTO.HistorySummary(
                     h.getInterview() != null ? h.getInterview().getId() : null,
                     label, score, type, difficulty));
         }
 
+        List<AnalyticsProgressDTO.TrendPoint> monthlyTrends = new ArrayList<>();
+        for (Map.Entry<String, List<Double>> entry : monthScores.entrySet()) {
+            double avg = entry.getValue().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            monthlyTrends.add(new AnalyticsProgressDTO.TrendPoint(entry.getKey(), round1(avg)));
+        }
+
         return AnalyticsProgressDTO.builder()
                 .performanceTrend(performanceTrend)
                 .skillGrowthTrend(skillGrowthTrend)
+                .difficultyProgression(difficultyProgression)
+                .monthlyTrends(monthlyTrends)
                 .history(history)
                 .build();
     }

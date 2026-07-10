@@ -56,9 +56,11 @@ public class MurfService {
                        @Value("${app.ai.murf.default-voice:en-US-natalie}") String defaultVoiceId,
                        @Value("${app.ai.murf.default-style:Conversational}") String defaultStyle,
                        @Value("${app.ai.murf.timeout-ms:10000}") int timeoutMs,
-                       @Value("${app.ai.murf.max-retries:3}") int maxRetries) {
+                       @Value("${app.ai.murf.max-retries:3}") int maxRetries,
+                       io.micrometer.core.instrument.MeterRegistry meterRegistry) {
         this.restTemplate = restTemplate;
         this.apiKey = apiKey;
+        this.circuitBreaker.setMetrics(meterRegistry, "murf");
         this.defaultVoiceId = defaultVoiceId;
         this.defaultStyle = defaultStyle;
         this.timeoutMs = timeoutMs;

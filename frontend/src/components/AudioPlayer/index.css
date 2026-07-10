@@ -1,0 +1,45 @@
+.audio-player-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px;
+  background-color: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  width: fit-content;
+}
+
+.audio-ctrl-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: 1.2rem;
+}
+
+.audio-ctrl-btn:hover {
+  background-color: var(--card);
+  color: var(--text-primary);
+}
+
+.audio-vol-slider {
+  width: 80px;
+  cursor: pointer;
+}
+
+.audio-speed-select {
+  padding: 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background-color: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}

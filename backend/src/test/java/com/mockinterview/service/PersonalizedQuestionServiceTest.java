@@ -36,7 +36,7 @@ class PersonalizedQuestionServiceTest {
         public String generate(String prompt) { return response; }
         
         @Override
-        public String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int count, String avoidList) {
+        public String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) {
             prompts.add(role + guidance + levelDifficulty);
             return response;
         }
@@ -94,7 +94,7 @@ class PersonalizedQuestionServiceTest {
                 q("What challenges did you face building the Placement Management System?", "behavioral") +
                 "]";
 
-        svc.generateAndSaveAIQuestions(interview, "Java Developer", "Java Spring Boot resume", PROFILE, 3, "STARTER", userId, 20L);
+        svc.generateAndSaveAIQuestions(interview, "Java Developer", "Java Spring Boot resume", PROFILE, 0, 3, 0, 0, 0, "STARTER", userId, 20L);
 
         List<Question> saved = questionRepository.findAll();
         // Phase 5: STARTER level requires at least 1 coding question; if AI didn't produce one, it's added as fallback
@@ -118,7 +118,7 @@ class PersonalizedQuestionServiceTest {
                 q("How did you implement JWT auth in your Placement Management System?", "project") +
                 "]";
 
-        svc.generateAndSaveAIQuestions(interview, "Java Developer", "resume", PROFILE, 3, "STANDARD", userId, 20L);
+        svc.generateAndSaveAIQuestions(interview, "Java Developer", "resume", PROFILE, 0, 3, 0, 0, 0, "STANDARD", userId, 20L);
 
         List<Question> saved = questionRepository.findAll();
         // Phase 5: 2 unique questions + at least 2 fallback coding = at least 4
@@ -139,7 +139,7 @@ class PersonalizedQuestionServiceTest {
                 q("What trade-offs did you consider when designing the Placement Management System?", "project") +
                 "]";
 
-        svc.generateAndSaveAIQuestions(interview, "Java Developer", "resume", PROFILE, 2, "STANDARD", userId, 20L);
+        svc.generateAndSaveAIQuestions(interview, "Java Developer", "resume", PROFILE, 0, 2, 0, 0, 0, "STANDARD", userId, 20L);
 
         List<Question> saved = questionRepository.findAll();
         // saved includes: the pre-existing past question (1) + 1 new non-duplicate + coding fallbacks (2) = 4

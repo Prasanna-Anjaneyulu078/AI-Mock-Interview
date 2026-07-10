@@ -3,6 +3,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -79,6 +86,14 @@ function DashboardPage() {
   const trendData = (progress?.performanceTrend || [])
     .map((p) => ({ label: p.label, score: p.score == null ? 0 : p.score }))
     .filter((p) => p.label); // keep only dated points
+
+  const monthlyData = (progress?.monthlyTrends || [])
+    .map((p) => ({ label: p.label, score: p.score == null ? 0 : p.score }))
+    .filter((p) => p.label);
+
+  const difficultyData = (progress?.difficultyProgression || [])
+    .map((p) => ({ label: p.label, level: p.score == null ? 0 : p.score }))
+    .filter((p) => p.label);
 
   const skillTrendData = (progress?.skillGrowthTrend || []).filter((p) => p.label);
 
@@ -164,9 +179,16 @@ function DashboardPage() {
                   accent={scoreColor(summary.averageScore)}
                 />
                 <StatCard
-                  label="Best Score"
-                  value={summary.bestScore?.toFixed(1)}
-                  accent={scoreColor(summary.bestScore)}
+                  label="Pass Rate"
+                  value={summary.passRate?.toFixed(0)}
+                  suffix="%"
+                  accent={scoreColor(summary.passRate)}
+                />
+                <StatCard
+                  label="Coding Accuracy"
+                  value={summary.codingAccuracy?.toFixed(0)}
+                  suffix="%"
+                  accent={scoreColor(summary.codingAccuracy)}
                 />
                 <StatCard
                   label="Completion Rate"
@@ -215,6 +237,7 @@ function DashboardPage() {
                 Performance Trends
               </h2>
               <div className="dash-charts">
+                {/* Score Progression */}
                 <div className="dash-chart-card">
                   <h3 className="dash-chart-title">Score Progression</h3>
                   {trendData.length > 0 ? (
@@ -241,6 +264,63 @@ function DashboardPage() {
                   )}
                 </div>
 
+                {/* Monthly Trends */}
+                <div className="dash-chart-card">
+                  <h3 className="dash-chart-title">Monthly Trends</h3>
+                  {monthlyData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={monthlyData} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="score" name="Average Score" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="dash-chart-empty">No monthly data available yet.</p>
+                  )}
+                </div>
+
+                {/* Radar Chart: Strengths & Weaknesses */}
+                <div className="dash-chart-card">
+                  <h3 className="dash-chart-title">Strengths & Weaknesses</h3>
+                  {summary.radarData && summary.radarData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <RadarChart data={summary.radarData} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
+                        <PolarGrid stroke="#e2e8f0" />
+                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                        <Radar name="Average Score" dataKey="score" stroke="#818cf8" fill="#8b5cf6" fillOpacity={0.4} strokeWidth={2} />
+                        <Tooltip />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="dash-chart-empty">No category data available yet.</p>
+                  )}
+                </div>
+
+                {/* Bar Chart: Language Proficiency */}
+                <div className="dash-chart-card">
+                  <h3 className="dash-chart-title">Language Proficiency (Questions Solved)</h3>
+                  {summary.languageData && summary.languageData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={summary.languageData} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="language" tick={{ fontSize: 12 }} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="count" name="Questions Completed" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="dash-chart-empty">No coding data recorded yet.</p>
+                  )}
+                </div>
+
+                {/* Skill Growth */}
                 <div className="dash-chart-card">
                   <h3 className="dash-chart-title">Skill Growth</h3>
                   {skillTrendData.length > 0 ? (
@@ -257,6 +337,35 @@ function DashboardPage() {
                     </ResponsiveContainer>
                   ) : (
                     <p className="dash-chart-empty">Not enough data to plot growth yet.</p>
+                  )}
+                </div>
+
+                {/* Difficulty Progression */}
+                <div className="dash-chart-card">
+                  <h3 className="dash-chart-title">Difficulty Progression</h3>
+                  {difficultyData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={difficultyData} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                        <YAxis 
+                          domain={[1, 3]} 
+                          ticks={[1, 2, 3]} 
+                          tickFormatter={(val) => val === 1 ? 'Beginner' : val === 2 ? 'Intermediate' : 'Advanced'}
+                          tick={{ fontSize: 12 }} 
+                        />
+                        <Tooltip 
+                          formatter={(value, name, props) => {
+                            const val = props.payload.level;
+                            return [val === 1 ? 'Beginner' : val === 2 ? 'Intermediate' : 'Advanced', 'Difficulty'];
+                          }}
+                        />
+                        <Legend />
+                        <Line type="stepAfter" dataKey="level" name="Difficulty Level" stroke="#f59e0b" strokeWidth={2} dot={{ r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="dash-chart-empty">No difficulty progression data yet.</p>
                   )}
                 </div>
               </div>

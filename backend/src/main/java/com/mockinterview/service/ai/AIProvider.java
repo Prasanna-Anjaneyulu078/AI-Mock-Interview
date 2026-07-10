@@ -17,9 +17,11 @@ public interface AIProvider {
     /** Generic raw completion (cloud providers call the model; local returns null). */
     String generate(String prompt);
 
-    /** Dynamic / resume-based interview question generation. */
-    String generateQuestions(String role, String resumeContext, String guidance,
-                             String levelDifficulty, int hr, int tech, int proj, int count, String avoidList);
+    /**
+     * Generates a batch of questions based on counts for different categories.
+     */
+    String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty,
+                             int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList);
 
     /** Role/student-aware opening question. */
     String generateIntroQuestion(String role, String structuredProfile);

@@ -19,8 +19,9 @@ import {
   BsFileEarmarkArrowUp,
   BsCheckCircleFill,
 } from 'react-icons/bs';
-import { FaPython, FaReact, FaJava, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
+import { FaPython, FaReact, FaJava, FaVolumeUp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import CustomDropdown from '../../components/CustomDropdown';
 import './index.css';
 
 const ROLE_ICONS = {
@@ -35,21 +36,21 @@ const ROLE_ICONS = {
 };
 
 const DIFFICULTY_ICONS = {
-  starter: (
+  BEGINNER: (
     <span className="setup-difficulty-stars">
       <BsStarFill className="setup-star-filled" />
       <BsStar className="setup-star-empty" />
       <BsStar className="setup-star-empty" />
     </span>
   ),
-  standard: (
+  INTERMEDIATE: (
     <span className="setup-difficulty-stars">
       <BsStarFill className="setup-star-filled" />
       <BsStarFill className="setup-star-filled" />
       <BsStar className="setup-star-empty" />
     </span>
   ),
-  advanced: (
+  ADVANCED: (
     <span className="setup-difficulty-stars">
       <BsStarFill className="setup-star-filled" />
       <BsStarFill className="setup-star-filled" />
@@ -61,9 +62,23 @@ const DIFFICULTY_ICONS = {
 function InterviewSetupPage() {
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(1);
+  const [stepIndex, setStepIndex] = useState(0);
   const [selectedRole, setSelectedRole] = useState('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('standard');
+  
+  const [interviewMode, setInterviewMode] = useState('RESUME');
+  const [targetCount, setTargetCount] = useState(15);
+  const [codingLanguage, setCodingLanguage] = useState('javascript');
+  const [selectedInterests, setSelectedInterests] = useState([]);
+
+  const AVAILABLE_INTERESTS = ['Java', 'Spring Boot', 'MERN', 'AI/ML', 'Data Science', 'Cloud', 'DevOps', 'System Design'];
+
+  const toggleInterest = (interest) => {
+    setSelectedInterests(prev => 
+      prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
+    );
+  };
+
+  const [selectedDifficulty, setSelectedDifficulty] = useState('INTERMEDIATE');
   const [resumeText, setResumeText] = useState('');
   const [parsedResume, setParsedResume] = useState(null);
   const [resumeId, setResumeId] = useState(null);
@@ -76,7 +91,6 @@ function InterviewSetupPage() {
   const [selectedStyle, setSelectedStyle] = useState('');
   const [voicesLoading, setVoicesLoading] = useState(false);
 
-  // Fetch the list of Murf voices for the picker (only when voice is enabled)
   useEffect(() => {
     if (!voiceEnabled) return;
     let cancelled = false;
@@ -94,10 +108,11 @@ function InterviewSetupPage() {
     loadVoices();
     return () => { cancelled = true; };
   }, [voiceEnabled]);
+
   const [loading, setLoading] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
 
-    useEffect(() => {
+  useEffect(() => {
     const loadResume = async () => {
       try {
         const data = await getResume();
@@ -109,11 +124,8 @@ function InterviewSetupPage() {
             try { setParsedResume(JSON.parse(data.structuredSkills)); } catch(e) {}
           }
         }
-      } catch (error) {
-        // No resume found - that's okay
-      }
+      } catch (error) {}
     };
-
     loadResume();
   }, []);
 
@@ -127,7 +139,6 @@ function InterviewSetupPage() {
     }
 
     setUploadingResume(true);
-
     try {
       const data = await uploadResume(file);
       setResumeText(data.text);
@@ -138,64 +149,80 @@ function InterviewSetupPage() {
       }
       toast.success('Resume uploaded successfully!');
     } catch (error) {
-      const message =
-        error.response?.data?.message || 'Failed to upload resume';
-      toast.error(message);
+      toast.error(error.response?.data?.message || 'Failed to upload resume');
     } finally {
       setUploadingResume(false);
     }
   };
 
-  const handleStartInterview = async () => {
-    if (!selectedRole) {
-      toast.error('Please select a role.');
+  const getSteps = () => {
+    const s = [
+      { id: 'mode', label: '1. Mode' },
+      { id: 'resume', label: '2. Resume' },
+      { id: 'difficulty', label: '3. Difficulty' },
+      { id: 'preferences', label: '4. Preferences' },
+      { id: 'start', label: '5. Ready' }
+    ];
+    return s;
+  };
+
+  const steps = getSteps();
+  const currentStep = steps[stepIndex];
+
+  const handleNext = () => {
+    if (currentStep.id === 'mode' && !interviewMode) {
+      toast.error('Please select an interview mode.');
       return;
     }
-    if (!resumeText) {
+    if (currentStep.id === 'resume' && !resumeText) {
       toast.error('Please upload your resume.');
       return;
     }
+    if (currentStep.id === 'preferences' && !selectedRole) {
+      toast.error('Please select a target role.');
+      return;
+    }
+    setStepIndex((prev) => Math.min(prev + 1, steps.length - 1));
+  };
 
+  const handleBack = () => {
+    setStepIndex((prev) => Math.max(prev - 1, 0));
+  };
+
+  const handleStartInterview = async () => {
     setLoading(true);
-
     try {
       const data = await startInterview(
         selectedRole,
         resumeId,
         selectedDifficulty.toUpperCase(),
         {
-          voiceEnabled,
+          voiceEnabled: interviewMode !== 'CODING_INTERVIEW' && voiceEnabled,
           voiceId: selectedVoiceId || undefined,
           style: selectedStyle || undefined,
           voiceSpeed,
+          interviewMode,
+          codingLanguage: interviewMode === 'CODING_INTERVIEW' ? codingLanguage : undefined,
+          selectedInterests: (interviewMode === 'INTEREST_BASED' || interviewMode === 'HYBRID') ? selectedInterests.join(', ') : undefined,
+          targetQuestionCount: targetCount,
         }
       );
       toast.success('Interview started!');
-      navigate(`/interview/${data.interviewId}`, {
-        state: {
-          audio: data.audio,
-          voiceSettings: { voiceEnabled, voiceId: selectedVoiceId, voiceSpeed },
-        },
-      });
+      if (interviewMode === 'CODING_INTERVIEW') {
+        navigate(`/coding-module/${data.interviewId}`);
+      } else {
+        navigate(`/interview/${data.interviewId}`, {
+          state: {
+            audio: data.audio,
+            voiceSettings: { voiceEnabled, voiceId: selectedVoiceId, voiceSpeed },
+          },
+        });
+      }
     } catch (error) {
-      const message =
-        error.response?.data?.message || 'Failed to start interview';
-      toast.error(message);
+      toast.error(error.response?.data?.message || 'Failed to start interview');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleNext = () => {
-    if (step === 1 && !selectedRole) {
-      toast.error('Please select a role.');
-      return;
-    }
-    setStep((prev) => Math.min(prev + 1, 4));
-  };
-
-  const handleBack = () => {
-    setStep((prev) => Math.max(prev - 1, 1));
   };
 
   if (loading) {
@@ -205,12 +232,9 @@ function InterviewSetupPage() {
           <div className="spinner-border setup-preparing-spinner" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
-          <h2 className="setup-preparing-heading">
-            Preparing Your Interview...
-          </h2>
+          <h2 className="setup-preparing-heading">Preparing Your Interview...</h2>
           <p className="setup-preparing-text">
-            AI is analyzing your resume and generating personalized questions for
-            the <strong>{selectedRole}</strong> role.
+            AI is analyzing your resume and generating personalized questions.
           </p>
           <div className="setup-preparing-steps">
             <div className="setup-prep-step">
@@ -219,224 +243,277 @@ function InterviewSetupPage() {
             </div>
             <div className="setup-prep-step">
               <BsCheckCircleFill className="setup-prep-step-icon-active" />
-              <span className="setup-prep-step-text">
-                Generating questions
-              </span>
+              <span className="setup-prep-step-text">Generating questions</span>
             </div>
-            <div className="setup-prep-step">
-              <BsCheckCircleFill className="setup-prep-step-icon-pending" />
-              <span className="setup-prep-step-text">
-                Setting up voice interviewer
-              </span>
-            </div>
+            {interviewMode !== 'CODING_INTERVIEW' && (
+              <div className="setup-prep-step">
+                <BsCheckCircleFill className="setup-prep-step-icon-pending" />
+                <span className="setup-prep-step-text">Setting up voice interviewer</span>
+              </div>
+            )}
           </div>
-          <p className="setup-preparing-hint">
-            This may take 10-15 seconds...
-          </p>
         </div>
       </div>
     );
   }
 
+  const interviewModeOptions = [
+    { value: 'RESUME', label: 'Resume-Based' },
+    { value: 'TECHNICAL', label: 'Technical Deep Dive' },
+    { value: 'HR', label: 'Behavioral / HR' },
+    { value: 'PROJECT', label: 'Project-Based' },
+    { value: 'CODING_INTERVIEW', label: 'Coding Interview' },
+    { value: 'INTEREST_BASED', label: 'Interest-Based' },
+    { value: 'HYBRID', label: 'Hybrid (All-in-One)' },
+  ];
+
+  const languageOptions = [
+    { value: 'javascript', label: 'JavaScript / Node.js' },
+    { value: 'python', label: 'Python' },
+    { value: 'java', label: 'Java' },
+    { value: 'cpp', label: 'C++' },
+    { value: 'sql', label: 'SQL' },
+  ];
+
   return (
     <div className="setup-page">
       <div className="setup-container">
         <div className="setup-step-indicator">
-          <span
-            className={`setup-step-badge ${step >= 1 ? 'setup-step-active' : ''}`}
-          >
-            1. Role
-          </span>
-          <span
-            className={`setup-step-badge ${step >= 2 ? 'setup-step-active' : ''}`}
-          >
-            2. Difficulty
-          </span>
-          <span
-            className={`setup-step-badge ${step >= 3 ? 'setup-step-active' : ''}`}
-          >
-            3. Resume
-          </span>
-          <span
-            className={`setup-step-badge ${step >= 4 ? 'setup-step-active' : ''}`}
-          >
-            4. Voice Settings
-          </span>
+          {steps.map((s, idx) => (
+            <span key={s.id} className={`setup-step-badge ${idx <= stepIndex ? 'setup-step-active' : ''}`}>
+              {s.label}
+            </span>
+          ))}
         </div>
 
-        {step === 1 && (
-          <div className="setup-section">
-            <h2 className="setup-section-heading">Select Interview Role</h2>
-            <div className="setup-roles-grid">
-              {INTERVIEW_ROLES.map((role) => {
-                const RoleIcon = ROLE_ICONS[role.id];
-                return (
-                  <button
-                    key={role.id}
-                    className={`setup-role-card ${selectedRole === role.title ? 'setup-role-selected' : ''}`}
-                    onClick={() => setSelectedRole(role.title)}
-                  >
-                    {RoleIcon && <RoleIcon className="setup-role-icon" />}
-                    <h3 className="setup-role-title">{role.title}</h3>
-                    <p className="setup-role-desc">{role.description}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="setup-section">
-            <h2 className="setup-section-heading">Choose Difficulty</h2>
-            <div className="setup-difficulty-row">
-              {DIFFICULTY_LEVELS.map((level) => (
-                <button
-                  key={level.id}
-                  className={`setup-difficulty-card ${selectedDifficulty === level.id ? 'setup-difficulty-selected' : ''}`}
-                  onClick={() => setSelectedDifficulty(level.id)}
-                >
-                  {DIFFICULTY_ICONS[level.id]}
-                  <h3 className="setup-difficulty-label">{level.label}</h3>
-                  <p className="setup-difficulty-desc">{level.description}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="setup-section">
-            <h2 className="setup-section-heading">Upload Your Resume</h2>
-            <div className="setup-resume-area">
-              {resumeText ? (
-                <div className="setup-resume-uploaded">
-                  <div className="setup-resume-info">
-                    <BsFileEarmarkArrowUp className="setup-resume-file-icon" />
-                    <p className="setup-resume-name">{resumeFileName}</p>
+        <div className="setup-step-content">
+          {currentStep.id === 'resume' && (
+            <div className="setup-section">
+              <h2 className="setup-section-heading">Upload Your Resume</h2>
+              <div className="setup-resume-area">
+                {resumeText ? (
+                  <div className="setup-resume-uploaded">
+                    <div className="setup-resume-info">
+                      <BsFileEarmarkArrowUp className="setup-resume-file-icon" />
+                      <p className="setup-resume-name">{resumeFileName}</p>
+                    </div>
+                    <label className="setup-change-resume-btn">
+                      Change
+                      <input type="file" accept=".pdf" onChange={handleResumeUpload} hidden />
+                    </label>
                   </div>
-                  <label className="setup-change-resume-btn">
-                    Change
-                    <input
-                      type="file"
-                      accept=".pdf"
-                      onChange={handleResumeUpload}
-                      hidden
-                    />
+                ) : (
+                  <label className="setup-upload-zone">
+                    <BsFileEarmarkArrowUp className="setup-upload-icon" />
+                    <p className="setup-upload-text">
+                      {uploadingResume ? 'Uploading...' : 'Click to upload PDF resume'}
+                    </p>
+                    <input type="file" accept=".pdf" onChange={handleResumeUpload} disabled={uploadingResume} hidden />
                   </label>
+                )}
+              </div>
+            </div>
+          )}
+
+          {currentStep.id === 'mode' && (
+            <div className="setup-section">
+              <h2 className="setup-section-heading">Interview Mode</h2>
+              <div className="setup-field">
+                <label className="setup-label">Interview Mode</label>
+                <CustomDropdown
+                  options={interviewModeOptions}
+                  value={interviewMode}
+                  onChange={(val) => setInterviewMode(val)}
+                  searchable={false}
+                />
+              </div>
+              
+              <div className="setup-field" style={{ marginTop: '20px' }}>
+                <label className="setup-label">Interview Length</label>
+                <div className="setup-difficulty-row">
+                  <button className={`setup-difficulty-card ${targetCount === 10 ? 'setup-difficulty-selected' : ''}`} onClick={() => setTargetCount(10)}>
+                    <h3 className="setup-difficulty-label">Short</h3>
+                    <p className="setup-difficulty-desc">10 Questions</p>
+                  </button>
+                  <button className={`setup-difficulty-card ${targetCount === 15 ? 'setup-difficulty-selected' : ''}`} onClick={() => setTargetCount(15)}>
+                    <h3 className="setup-difficulty-label">Medium</h3>
+                    <p className="setup-difficulty-desc">15 Questions</p>
+                  </button>
+                  <button className={`setup-difficulty-card ${targetCount === 20 ? 'setup-difficulty-selected' : ''}`} onClick={() => setTargetCount(20)}>
+                    <h3 className="setup-difficulty-label">Long</h3>
+                    <p className="setup-difficulty-desc">20 Questions</p>
+                  </button>
                 </div>
-              ) : (
-                <label className="setup-upload-zone">
-                  <BsFileEarmarkArrowUp className="setup-upload-icon" />
-                  <p className="setup-upload-text">
-                    {uploadingResume
-                      ? 'Uploading...'
-                      : 'Click to upload PDF resume'}
-                  </p>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleResumeUpload}
-                    disabled={uploadingResume}
-                    hidden
-                  />
-                </label>
+              </div>
+
+              {(interviewMode === 'INTEREST_BASED' || interviewMode === 'HYBRID') && (
+                <div className="setup-field" style={{ marginTop: '20px' }}>
+                  <label className="setup-label">Select Specific Interests</label>
+                  <div className="setup-interest-tags">
+                    {AVAILABLE_INTERESTS.map(interest => (
+                      <button
+                        key={interest}
+                        type="button"
+                        className={`setup-interest-tag ${selectedInterests.includes(interest) ? 'setup-interest-tag-active' : ''}`}
+                        onClick={() => toggleInterest(interest)}
+                      >
+                        {interest}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {step === 4 && (
-          <div className="setup-section">
-            <h2 className="setup-section-heading">Voice Interviewer Settings</h2>
-
-            <div className="setup-field">
-              <label className="setup-label">Enable voice interviewer</label>
-              <label className="setup-toggle">
-                <input
-                  type="checkbox"
-                  checked={voiceEnabled}
-                  onChange={(e) => setVoiceEnabled(e.target.checked)}
-                />
-                <span>{voiceEnabled ? 'On' : 'Off'}</span>
-              </label>
+          {currentStep.id === 'difficulty' && (
+            <div className="setup-section">
+              <h2 className="setup-section-heading">Choose Difficulty</h2>
+              <div className="setup-difficulty-row">
+                {DIFFICULTY_LEVELS.map((level) => (
+                  <button
+                    key={level.id}
+                    className={`setup-difficulty-card ${selectedDifficulty === level.id ? 'setup-difficulty-selected' : ''}`}
+                    onClick={() => setSelectedDifficulty(level.id)}
+                  >
+                    {DIFFICULTY_ICONS[level.id]}
+                    <h3 className="setup-difficulty-label">{level.label}</h3>
+                    <p className="setup-difficulty-desc">{level.description}</p>
+                  </button>
+                ))}
+              </div>
             </div>
+          )}
 
-            {voiceEnabled && (
-              <>
+          {currentStep.id === 'preferences' && (
+            <div className="setup-section">
+              <h2 className="setup-section-heading">Interview Preferences</h2>
+              
+              <div className="setup-field" style={{ marginBottom: '32px' }}>
+                <label className="setup-label">Target Role (Required)</label>
+                <CustomDropdown
+                  options={INTERVIEW_ROLES.map(r => ({ value: r.title, label: r.title }))}
+                  value={selectedRole}
+                  onChange={(val) => setSelectedRole(val)}
+                  searchable={true}
+                />
+              </div>
+
+              {interviewMode === 'CODING_INTERVIEW' && (
                 <div className="setup-field">
-                  <label className="setup-label">Interviewer Voice</label>
-                  {voicesLoading ? (
-                    <p className="setup-voice-hint">Loading voices…</p>
-                  ) : murfVoices.length === 0 ? (
-                    <p className="setup-voice-hint">
-                      Voice list unavailable (Murf not configured). A default voice will be used.
-                    </p>
-                  ) : (
-                    <select
-                      className="setup-input"
-                      value={selectedVoiceId}
-                      onChange={(e) => {
-                        const v = murfVoices.find((x) => x.voiceId === e.target.value);
-                        setSelectedVoiceId(e.target.value);
-                        setSelectedStyle(v && v.styles && v.styles.length ? v.styles[0] : '');
-                      }}
-                    >
-                      <option value="">Default voice</option>
-                      {murfVoices.map((v) => (
-                        <option key={v.voiceId} value={v.voiceId}>
-                          {v.name} ({v.gender || '—'}, {v.language || v.locale || 'en'})
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-
-                {(() => {
-                  const current = murfVoices.find((x) => x.voiceId === selectedVoiceId);
-                  if (!current || !current.styles || current.styles.length === 0) return null;
-                  return (
-                    <div className="setup-field">
-                      <label className="setup-label">Speaking Style</label>
-                      <select
-                        className="setup-input"
-                        value={selectedStyle}
-                        onChange={(e) => setSelectedStyle(e.target.value)}
-                      >
-                        {current.styles.map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                })()}
-
-                <div className="setup-field">
-                  <label className="setup-label">
-                    Speaking Speed: {voiceSpeed.toFixed(2)}x
-                  </label>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2"
-                    step="0.1"
-                    value={voiceSpeed}
-                    onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
-                    className="setup-range"
+                  <label className="setup-label">Programming Language</label>
+                  <CustomDropdown
+                    options={languageOptions}
+                    value={codingLanguage}
+                    onChange={(val) => setCodingLanguage(val)}
+                    searchable={true}
                   />
                 </div>
-              </>
-            )}
-          </div>
-        )}
+              )}
+
+              {interviewMode !== 'CODING_INTERVIEW' && (
+                <>
+                  <div className="setup-field" style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid var(--border)' }}>
+                    <label className="setup-label">Enable Voice Interviewer</label>
+                    <label className="setup-toggle">
+                      <input type="checkbox" checked={voiceEnabled} onChange={(e) => setVoiceEnabled(e.target.checked)} />
+                      <span>{voiceEnabled ? 'On' : 'Off'}</span>
+                    </label>
+                  </div>
+
+                  {voiceEnabled && (
+                    <>
+                      <div className="setup-field">
+                        <label className="setup-label">Interviewer Voice</label>
+                        {voicesLoading ? (
+                          <p className="setup-voice-hint">Loading voices…</p>
+                        ) : (
+                          <CustomDropdown
+                            options={[
+                              { value: '', label: 'Default Voice' },
+                              ...murfVoices.map(v => ({ value: v.voiceId, label: `${v.name} (${v.gender || '—'}, ${v.language || v.locale || 'en'})` }))
+                            ]}
+                            value={selectedVoiceId}
+                            onChange={(val) => {
+                              setSelectedVoiceId(val);
+                              const v = murfVoices.find(x => x.voiceId === val);
+                              setSelectedStyle(v && v.styles && v.styles.length ? v.styles[0] : '');
+                            }}
+                            searchable={true}
+                          />
+                        )}
+                      </div>
+
+                      {(() => {
+                        const current = murfVoices.find((x) => x.voiceId === selectedVoiceId);
+                        if (!current || !current.styles || current.styles.length === 0) return null;
+                        return (
+                          <div className="setup-field">
+                            <label className="setup-label">Speaking Style</label>
+                            <CustomDropdown
+                              options={current.styles.map(s => ({ value: s, label: s }))}
+                              value={selectedStyle}
+                              onChange={(val) => setSelectedStyle(val)}
+                            />
+                          </div>
+                        );
+                      })()}
+
+                      <div className="setup-field" style={{ marginTop: '20px' }}>
+                        <label className="setup-label">Speaking Speed: {voiceSpeed.toFixed(2)}x</label>
+                        <div className="setup-speed-control-row">
+                          <input
+                            type="range"
+                            min="0.5"
+                            max="2"
+                            step="0.1"
+                            value={voiceSpeed}
+                            onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
+                            className="setup-range"
+                          />
+                          <button 
+                            className="setup-voice-preview-btn"
+                            onClick={() => {
+                               if (!window.speechSynthesis) return;
+                               window.speechSynthesis.cancel();
+                               const u = new SpeechSynthesisUtterance("Hi there! I will be your interviewer today.");
+                               u.rate = voiceSpeed;
+                               window.speechSynthesis.speak(u);
+                            }}
+                          >
+                            <FaVolumeUp /> Preview
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {currentStep.id === 'start' && (
+            <div className="setup-section" style={{ textAlign: 'center' }}>
+              <h2 className="setup-section-heading">Ready to begin!</h2>
+              <p style={{ color: '#ccc', marginBottom: '2rem' }}>
+                You have selected the <strong>{selectedRole}</strong> role with a <strong>{selectedDifficulty}</strong> difficulty level.
+              </p>
+              <BsCheckCircleFill style={{ fontSize: '4rem', color: '#00cc66', marginBottom: '2rem' }} />
+              <p>Click "Start Interview" when you are ready.</p>
+            </div>
+          )}
+        </div>
 
         <div className="setup-nav-buttons">
-          {step > 1 && (
-            <button className="setup-back-btn" onClick={handleBack}>
-              Back
-            </button>
-          )}
-          {step < 4 ? (
+          <button 
+            className="setup-back-btn" 
+            onClick={handleBack} 
+            style={{ visibility: stepIndex === 0 ? 'hidden' : 'visible' }}
+          >
+            Back
+          </button>
+          
+          {stepIndex < steps.length - 1 ? (
             <button className="setup-next-btn" onClick={handleNext}>
               Next
             </button>

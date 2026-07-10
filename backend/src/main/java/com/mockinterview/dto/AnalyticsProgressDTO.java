@@ -20,6 +20,12 @@ public class AnalyticsProgressDTO {
     /** Cumulative distinct strong/weak skill counts over time. */
     private List<SkillGrowthPoint> skillGrowthTrend;
 
+    /** Difficulty progression over time. */
+    private List<TrendPoint> difficultyProgression;
+
+    /** Monthly performance trends. */
+    private List<TrendPoint> monthlyTrends;
+
     /** Per-interview summary rows. */
     private List<HistorySummary> history;
 

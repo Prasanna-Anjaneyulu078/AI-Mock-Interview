@@ -25,6 +25,9 @@ public class Interview {
     private User user;
 
     private String interviewType; // e.g. original "role"
+    private String interviewMode; // e.g. RESUME, TECHNICAL, HYBRID, CODING_INTERVIEW, INTEREST_BASED
+    private String codingLanguage; // for coding interviews
+    private String selectedInterests; // CSV of selected interests
 
     private String difficulty; // not explicitly in old schema but standard
 
@@ -46,6 +49,8 @@ public class Interview {
     // Derived fields to map old features
     @Column(columnDefinition = "TEXT")
     private String resumeText;
+
+    private Integer targetQuestionCount; // 10, 15, or 20 (SHORT, MEDIUM, LONG)
 
     private Integer totalQuestions;
 

@@ -8,6 +8,7 @@ import InterviewPage from './pages/InterviewPage';
 import FeedbackPage from './pages/FeedbackPage';
 import HistoryPage from './pages/HistoryPage';
 import DashboardPage from './pages/DashboardPage';
+import CodingIDEPage from './pages/CodingIDEPage';
 
 function App() {
   return (
@@ -39,6 +40,15 @@ function App() {
             <ProtectedRoute>
               <Navbar />
               <InterviewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/coding-module/:id"
+          element={
+            <ProtectedRoute>
+              <Navbar />
+              <CodingIDEPage />
             </ProtectedRoute>
           }
         />

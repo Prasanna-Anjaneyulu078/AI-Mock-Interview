@@ -29,12 +29,27 @@ public final class ResilienceUtil {
         private int consecutiveFailures = 0;
         private long openedAt = 0;
         private boolean open = false;
+        
+        private io.micrometer.core.instrument.MeterRegistry registry;
+        private String name;
 
         public CircuitBreaker(int failureThreshold, long cooldownMs) {
             this.failureThreshold = failureThreshold;
             this.cooldownMs = cooldownMs;
         }
 
+        public void setMetrics(io.micrometer.core.instrument.MeterRegistry registry, String name) {
+            this.registry = registry;
+            this.name = name;
+            
+            if (registry != null && name != null) {
+                io.micrometer.core.instrument.Gauge.builder("circuit.breaker.state", this, cb -> cb.isOpen() ? 1.0 : 0.0)
+                        .tag("name", name)
+                        .description("Circuit breaker state (1=open, 0=closed)")
+                        .register(registry);
+            }
+        }
+        
         public synchronized boolean allowRequest() {
             if (!open) {
                 return true;
@@ -50,10 +65,16 @@ public final class ResilienceUtil {
         public synchronized void onSuccess() {
             open = false;
             consecutiveFailures = 0;
+            if (registry != null && name != null) {
+                registry.counter("circuit.breaker.calls", "name", name, "result", "success").increment();
+            }
         }
 
         public synchronized void onFailure() {
             consecutiveFailures++;
+            if (registry != null && name != null) {
+                registry.counter("circuit.breaker.calls", "name", name, "result", "failure").increment();
+            }
             if (consecutiveFailures >= failureThreshold) {
                 open = true;
                 openedAt = System.currentTimeMillis();

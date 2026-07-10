@@ -21,7 +21,7 @@ public class LocalRuleProvider implements AIProvider {
     }
 
     @Override
-    public String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int count, String avoidList) {
+    public String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) {
         // Fallback static questions
         StringBuilder sb = new StringBuilder();
         sb.append("[\n");

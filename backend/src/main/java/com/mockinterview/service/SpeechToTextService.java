@@ -49,10 +49,10 @@ public class SpeechToTextService {
     }
 
     @SuppressWarnings("unchecked")
-    public String transcribeAudio(MultipartFile audio) {
+    public Map<String, Object> transcribeAudioWithMetadata(MultipartFile audio) {
         if (apiKey == null || apiKey.isEmpty()) {
             log.warn("AssemblyAI API key not configured — returning empty transcript.");
-            return "";
+            return Map.of("text", "", "duration", 0);
         }
 
         // ── 1. Upload audio ──────────────────────────────────────────────────────
@@ -69,17 +69,17 @@ public class SpeechToTextService {
 
             if (uploadResponse.getBody() == null) {
                 log.error("AssemblyAI upload returned null body — cannot transcribe.");
-                return "";
+                return Map.of("text", "", "duration", 0);
             }
             uploadUrl = (String) uploadResponse.getBody().get("upload_url");
             if (uploadUrl == null || uploadUrl.isBlank()) {
                 log.error("AssemblyAI upload_url is missing from response.");
-                return "";
+                return Map.of("text", "", "duration", 0);
             }
             log.debug("AssemblyAI upload succeeded: {}", uploadUrl);
         } catch (Exception e) {
             log.error("AssemblyAI audio upload failed: {}", e.getMessage());
-            return "";
+            return Map.of("text", "", "duration", 0);
         }
 
         // ── 2. Submit transcript job ─────────────────────────────────────────────
@@ -89,27 +89,28 @@ public class SpeechToTextService {
             transcriptHeaders.set("Authorization", apiKey);
             transcriptHeaders.setContentType(MediaType.APPLICATION_JSON);
 
-            Map<String, String> transcriptRequest = new HashMap<>();
+            Map<String, Object> transcriptRequest = new HashMap<>();
             transcriptRequest.put("audio_url", uploadUrl);
+            transcriptRequest.put("disfluencies", true); // Feature 4: Include filler words like 'um', 'uh'
 
-            HttpEntity<Map<String, String>> transcriptEntity = new HttpEntity<>(transcriptRequest, transcriptHeaders);
+            HttpEntity<Map<String, Object>> transcriptEntity = new HttpEntity<>(transcriptRequest, transcriptHeaders);
             ResponseEntity<Map<String, Object>> transcriptResponse = restTemplate.postForEntity(
                     TRANSCRIPT_URL, transcriptEntity,
                     (Class<Map<String, Object>>) (Class<?>) Map.class);
 
             if (transcriptResponse.getBody() == null) {
                 log.error("AssemblyAI transcript submission returned null body.");
-                return "";
+                return Map.of("text", "", "duration", 0);
             }
             transcriptId = (String) transcriptResponse.getBody().get("id");
             if (transcriptId == null || transcriptId.isBlank()) {
                 log.error("AssemblyAI transcript ID missing from submission response.");
-                return "";
+                return Map.of("text", "", "duration", 0);
             }
             log.debug("AssemblyAI transcript job submitted: id={}", transcriptId);
         } catch (Exception e) {
             log.error("AssemblyAI transcript submission failed: {}", e.getMessage());
-            return "";
+            return Map.of("text", "", "duration", 0);
         }
 
         // ── 3. Bounded polling with exponential backoff ──────────────────────────
@@ -126,7 +127,7 @@ public class SpeechToTextService {
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 log.warn("AssemblyAI poll interrupted.");
-                return "";
+                return Map.of("text", "", "duration", 0);
             }
 
             try {
@@ -145,18 +146,21 @@ public class SpeechToTextService {
 
                 if ("completed".equals(status)) {
                     String text = (String) resultBody.get("text");
+                    Number durationObj = (Number) resultBody.get("audio_duration");
+                    int duration = durationObj != null ? durationObj.intValue() : 0;
+                    
                     if (text == null || text.isBlank()) {
                         log.info("AssemblyAI transcription completed but returned empty text — treating as skipped.");
-                        return "";
+                        return Map.of("text", "", "duration", duration);
                     }
-                    log.info("AssemblyAI transcription completed: {} chars", text.length());
-                    return text;
+                    log.info("AssemblyAI transcription completed: {} chars, {} seconds", text.length(), duration);
+                    return Map.of("text", text, "duration", duration);
                 }
 
                 if ("error".equals(status)) {
                     String errorMsg = resultBody.get("error") instanceof String s ? s : "unknown";
                     log.error("AssemblyAI transcription error: {}", errorMsg);
-                    return "";
+                    return Map.of("text", "", "duration", 0);
                 }
 
                 // "queued" or "processing" — continue polling
@@ -166,7 +170,7 @@ public class SpeechToTextService {
             }
         }
 
-        log.error("AssemblyAI transcript polling timed out after {} polls for id={}", maxPolls, transcriptId);
-        return "";
+        log.error("AssemblyAI transcription timed out after {} polls.", maxPolls);
+        return Map.of("text", "", "duration", 0);
     }
 }

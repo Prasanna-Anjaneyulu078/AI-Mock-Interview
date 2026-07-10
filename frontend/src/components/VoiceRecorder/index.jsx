@@ -5,7 +5,7 @@ import './index.css';
 
 const MAX_RECORD_TIME = 300;
 
-function VoiceRecorder({ onRecordingComplete, disabled, autoStart }) {
+function VoiceRecorder({ onRecordingComplete, disabled, autoStart, onRecordingStart, onRecordingStop }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [mediaRecorder, setMediaRecorder] = useState(null);
@@ -98,6 +98,7 @@ useEffect(() => {
       setMediaRecorder(recorder);
       setIsRecording(true);
       setRecordingTime(0);
+      if (onRecordingStart) onRecordingStart();
     } catch (error) {
       console.error('Microphone access error:', error.message);
       toast.error(
@@ -111,6 +112,7 @@ useEffect(() => {
       mediaRecorder.stop();
     }
     setIsRecording(false);
+    if (onRecordingStop) onRecordingStop();
   };
 
   const handleSubmit = () => {

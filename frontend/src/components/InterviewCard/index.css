@@ -1,9 +1,16 @@
 .interview-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
   cursor: pointer;
+  box-shadow: var(--card-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.interview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .interview-card-top {
@@ -16,12 +23,12 @@
 .interview-card-role {
   font-family: 'Bree Serif', serif;
   font-size: 18px;
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .interview-badge {
-  font-family: 'Open Sans', sans-serif;
+  font-family: 'Inter', 'Open Sans', sans-serif;
   font-size: 12px;
   font-weight: 600;
   padding: 4px 10px;
@@ -29,13 +36,13 @@
 }
 
 .badge-success {
-  background-color: #dcfce7;
-  color: #16a34a;
+  background-color: rgba(22, 163, 74, 0.1);
+  color: var(--success-color);
 }
 
 .badge-warning {
-  background-color: #fef3c7;
-  color: #d97706;
+  background-color: rgba(217, 119, 6, 0.1);
+  color: var(--warning-color);
 }
 
 .interview-card-meta {
@@ -47,9 +54,9 @@
 
 .interview-card-date,
 .interview-card-questions {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .interview-card-score {
@@ -60,12 +67,13 @@
   font-family: 'Bree Serif', serif;
   font-size: 28px;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
 .score-label {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 16px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   margin-left: 2px;
 }
 
@@ -73,7 +81,7 @@
   display: flex;
   justify-content: flex-end;
   padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border);
 }
 
 .interview-card-delete {
@@ -83,11 +91,16 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 14px;
-  color: #dc2626;
+  color: var(--danger-color);
   padding: 4px 8px;
   border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.interview-card-delete:hover {
+  background-color: var(--danger-light);
 }
 
 .delete-icon {

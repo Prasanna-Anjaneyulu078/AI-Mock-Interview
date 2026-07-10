@@ -1,25 +1,92 @@
-/* ============================================
-   App.css - Global Styles (Ocean Blue Palette)
-   ============================================
-   Skills-compliant: No CSS variables, no animations,
-   no transitions, no transforms, no pseudo-classes.
-   Reference: reference-frontend.md (CSS properties)
-   ============================================ */
+@import url("https://fonts.googleapis.com/css2?family=Bree+Serif&family=Inter:wght@300;400;500;600;700&family=Roboto:wght@400;500;700&display=swap");
 
-@import url("https://fonts.googleapis.com/css2?family=Bree+Serif&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&display=swap");
+:root[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #e2e8f0;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --border: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent-color: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-light: #dbeafe;
+  --success-color: #16a34a;
+  --success-light: #dcfce7;
+  --warning-color: #d97706;
+  --warning-light: #fef3c7;
+  --danger-color: #dc2626;
+  --danger-light: #fee2e2;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.9);
+}
 
-/* Reset (skills-compliant) */
+:root[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e1e2f;
+  --surface: rgba(255, 255, 255, 0.05);
+  --card: rgba(255, 255, 255, 0.03);
+  --border: rgba(255, 255, 255, 0.1);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --accent-color: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-light: rgba(59, 130, 246, 0.15);
+  --success-color: #10b981;
+  --success-light: rgba(16, 185, 129, 0.15);
+  --warning-color: #f59e0b;
+  --warning-light: rgba(245, 158, 11, 0.15);
+  --danger-color: #ef4444;
+  --danger-light: rgba(239, 68, 68, 0.15);
+  --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --glass-bg: rgba(15, 23, 42, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Base Fallback */
+:root {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #e2e8f0;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --border: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent-color: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-light: #dbeafe;
+  --success-color: #16a34a;
+  --success-light: #dcfce7;
+  --warning-color: #d97706;
+  --warning-light: #fef3c7;
+  --danger-color: #dc2626;
+  --danger-light: #fee2e2;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.9);
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+*:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
 body {
-  font-family: "Roboto", sans-serif;
-  background-color: #f8fafc;
-  color: #334155;
+  font-family: "Inter", "Roboto", sans-serif;
+  background-color: var(--bg-primary);
+  background-image: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
   line-height: 1.6;
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 a {
@@ -34,154 +101,107 @@ button {
   font-family: inherit;
 }
 
-input,
-textarea,
-select {
+input, textarea, select {
   font-family: inherit;
   outline: none;
 }
 
-/* ============================================
-   Shared Button Classes
-   Reference: ui-patterns.md (Button Patterns)
-   ============================================ */
-.btn-primary {
-  background-color: #2563eb;
+/* Modern SaaS Buttons */
+.btn-primary, .btn-primary-lg {
+  background-color: var(--accent-color);
   color: #ffffff;
-  font-family: "Roboto";
-  font-size: 14px;
-  font-weight: 700;
-  padding: 12px 24px;
-  border-radius: 8px;
-  border-style: none;
-  cursor: pointer;
-  outline: none;
+  font-weight: 600;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px var(--accent-light);
+}
+
+.btn-primary {
+  font-size: 15px;
+  padding: 10px 20px;
+  min-height: 42px;
 }
 
 .btn-primary-lg {
-  background-color: #2563eb;
-  color: #ffffff;
-  font-family: "Roboto";
   font-size: 16px;
-  font-weight: 700;
-  padding: 14px 32px;
-  border-radius: 8px;
-  border-style: none;
-  cursor: pointer;
-  outline: none;
+  padding: 14px 28px;
+  min-height: 48px;
+}
+
+.btn-primary:hover:not(:disabled), .btn-primary-lg:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px var(--accent-light);
 }
 
 .btn-outline {
   background-color: transparent;
-  color: #2563eb;
-  font-family: "Roboto";
-  font-size: 14px;
-  font-weight: 700;
-  padding: 12px 24px;
-  border-radius: 8px;
-  border-style: solid;
-  border-width: 2px;
-  border-color: #2563eb;
-  cursor: pointer;
-  outline: none;
+  color: var(--accent-color);
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: 2px solid var(--accent-color);
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: var(--accent-light);
 }
 
 .btn-danger {
-  background-color: #dc2626;
+  background-color: var(--danger-color);
   color: #ffffff;
-  font-family: "Roboto";
-  font-size: 14px;
-  font-weight: 700;
-  padding: 12px 24px;
-  border-radius: 8px;
-  border-style: none;
-  cursor: pointer;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 12px;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px var(--danger-light);
 }
 
-.btn-danger-text {
-  background-color: transparent;
-  color: #dc2626;
-  font-family: "Roboto";
-  font-size: 14px;
-  font-weight: 700;
-  padding: 8px 16px;
-  border-style: none;
-  cursor: pointer;
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(0.9);
+  transform: translateY(-2px);
 }
 
 .btn-disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
-/* ============================================
-   Shared Badge Classes
-   Reference: text-highlight-patterns.md (Method 4)
-   ============================================ */
-.badge {
-  background-color: #dbeafe;
-  color: #1d4ed8;
-  font-family: "Roboto";
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 100px;
-  display: inline-block;
+/* Glassmorphism Cards */
+.card {
+  background-color: var(--card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 24px;
+  box-shadow: var(--card-shadow);
+  color: var(--text-primary);
+  transition: transform 0.2s ease, background-color 0.3s ease, border-color 0.3s ease;
 }
 
-.badge-success {
-  background-color: #dcfce7;
-  color: #16a34a;
+.card:hover {
+  transform: translateY(-2px);
 }
 
-.badge-warning {
-  background-color: #fef3c7;
-  color: #d97706;
-}
-
-.badge-error {
-  background-color: #fee2e2;
-  color: #dc2626;
-}
-
-/* ============================================
-   Shared Callout Classes
-   Reference: text-highlight-patterns.md (Method 5)
-   ============================================ */
-.callout {
-  border-style: solid;
-  border-width: 0px;
-  border-left-width: 4px;
-  border-color: #2563eb;
-  background-color: #f8fafc;
-  padding: 16px 20px;
-  border-radius: 0px 8px 8px 0px;
-}
-
-.callout-success {
-  border-color: #16a34a;
-  background-color: #f0fdf4;
-}
-
-.callout-warning {
-  border-color: #d97706;
-  background-color: #fffbeb;
-}
-
-.callout-error {
-  border-color: #dc2626;
-  background-color: #fef2f2;
-}
-
-.callout-info {
-  border-color: #0891b2;
-  background-color: #ecfeff;
-}
-
-/* ============================================
-   Shared Form Classes
-   Reference: ui-patterns.md (Form Design)
-   ============================================ */
+/* Form Design */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -189,44 +209,91 @@ select {
 }
 
 .form-label {
-  font-family: "Roboto";
   font-size: 14px;
-  font-weight: 700;
-  color: #334155;
+  font-weight: 500;
+  color: var(--text-secondary);
   margin-bottom: 8px;
 }
 
 .form-input {
-  font-family: "Roboto";
-  font-size: 16px;
+  font-size: 15px;
   padding: 12px 16px;
-  border-style: solid;
-  border-width: 1px;
-  border-color: #cbd5e1;
-  border-radius: 8px;
-  color: #0f172a;
-  background-color: #ffffff;
-  outline: none;
-}
-
-/* ============================================
-   Shared Card Classes
-   Reference: ui-patterns.md (Card Design Pattern)
-   ============================================ */
-.card {
-  background-color: #ffffff;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  border-style: solid;
-  border-width: 1px;
-  border-color: #e2e8f0;
-  padding: 24px;
+  color: var(--text-primary);
+  min-height: 44px;
+  transition: all 0.2s ease;
 }
 
-/* ============================================
-   Loading State (Bootstrap Spinner)
-   UI NOTE: Using Bootstrap spinner-border pattern
-   since custom @keyframes are not in student refs.
-   ============================================ */
+.form-input:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.form-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+/* Layout */
+.app-shell, .protected-shell {
+  min-height: 100vh;
+  background: transparent;
+}
+
+/* Badges */
+.badge {
+  background-color: var(--accent-light);
+  color: var(--accent-color);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 100px;
+  display: inline-block;
+  border: 1px solid var(--border);
+}
+
+.badge-success {
+  background-color: var(--success-light);
+  color: var(--success-color);
+}
+
+.badge-warning {
+  background-color: var(--warning-light);
+  color: var(--warning-color);
+}
+
+.badge-error {
+  background-color: var(--danger-light);
+  color: var(--danger-color);
+}
+
+/* Callouts */
+.callout {
+  border-left: 4px solid var(--accent-color);
+  background-color: var(--accent-light);
+  padding: 16px 20px;
+  border-radius: 0 12px 12px 0;
+  color: var(--text-primary);
+}
+
+.callout-success {
+  border-left-color: var(--success-color);
+  background-color: var(--success-light);
+}
+
+.callout-warning {
+  border-left-color: var(--warning-color);
+  background-color: var(--warning-light);
+}
+
+.callout-error {
+  border-left-color: var(--danger-color);
+  background-color: var(--danger-light);
+}
+
+/* Loading State */
 .loading-container {
   display: flex;
   flex-direction: column;
@@ -237,45 +304,44 @@ select {
 }
 
 .loading-container p {
-  font-family: "Roboto";
   font-size: 16px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
-/* ============================================
-   Empty State
-   ============================================ */
+/* Empty State */
 .empty-container {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 64px 24px;
-  gap: 12px;
+  gap: 16px;
   text-align: center;
 }
 
 .empty-container h3 {
-  font-family: "Bree Serif";
-  font-size: 20px;
-  color: #0f172a;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .empty-container p {
-  font-family: "Roboto";
-  font-size: 14px;
-  color: #64748b;
+  font-size: 15px;
+  color: var(--text-secondary);
 }
 
-/* ============================================
-   App Shell
-   ============================================ */
-.app-shell {
-  min-height: 100vh;
-  background-color: #f8fafc;
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
-
-.protected-shell {
-  min-height: 100vh;
-  background-color: #f8fafc;
+::-webkit-scrollbar-track {
+  background: var(--bg-primary); 
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border); 
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary); 
 }

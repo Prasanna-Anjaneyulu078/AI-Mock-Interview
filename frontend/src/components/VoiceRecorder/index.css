@@ -9,14 +9,19 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background-color: #2563eb;
+  background-color: var(--accent-color);
   color: #ffffff;
   border: none;
   border-radius: 8px;
   padding: 12px 24px;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 16px;
   cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.vr-record-btn:hover:not(.vr-record-btn-disabled) {
+  filter: brightness(1.1);
 }
 
 .vr-record-btn-disabled {
@@ -43,32 +48,37 @@
 }
 
 .vr-record-dot {
-  color: #dc2626;
+  color: var(--danger-color);
   font-size: 20px;
 }
 
 .vr-status-text {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 16px;
-  color: #dc2626;
+  color: var(--danger-color);
   font-weight: 600;
 }
 
 .vr-timer {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 14px;
-  color: #334155;
+  color: var(--text-primary);
 }
 
 .vr-stop-btn {
-  background-color: #dc2626;
+  background-color: var(--danger-color);
   color: #ffffff;
   border: none;
   border-radius: 8px;
   padding: 10px 24px;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 14px;
   cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.vr-stop-btn:hover {
+  filter: brightness(1.1);
 }
 
 .vr-preview {
@@ -80,9 +90,9 @@
 }
 
 .vr-preview-label {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 14px;
-  color: #334155;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -92,9 +102,9 @@
 }
 
 .vr-preview-duration {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -105,14 +115,20 @@
 }
 
 .vr-rerecord-btn {
-  background-color: #ffffff;
-  color: #2563eb;
-  border: 1px solid #2563eb;
+  background-color: var(--surface);
+  color: var(--accent-color);
+  border: 1px solid var(--accent-color);
   border-radius: 8px;
   padding: 10px 20px;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 14px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vr-rerecord-btn:hover:not(.vr-rerecord-btn-disabled) {
+  background-color: var(--accent-color);
+  color: #ffffff;
 }
 
 .vr-rerecord-btn-disabled {
@@ -124,14 +140,19 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background-color: #2563eb;
+  background-color: var(--accent-color);
   color: #ffffff;
   border: none;
   border-radius: 8px;
   padding: 10px 20px;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Inter', 'Roboto', sans-serif;
   font-size: 14px;
   cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.vr-submit-btn:hover:not(.vr-submit-btn-disabled) {
+  filter: brightness(1.1);
 }
 
 .vr-submit-btn-disabled {

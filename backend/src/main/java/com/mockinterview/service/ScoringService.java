@@ -81,6 +81,37 @@ public class ScoringService {
             answer.setStrengths(asJsonArrayString(evalMap.get("strengths")));
             answer.setWeaknesses(asJsonArrayString(evalMap.get("weaknesses")));
             answer.setRecommendations(asJsonArrayString(evalMap.get("recommendations")));
+            
+            // Advanced Voice Analytics
+            if (request.getFillerWordsCount() != null) {
+                answer.setFillerWordsCount(request.getFillerWordsCount());
+            }
+            if (request.getSpeakingSpeed() != null) {
+                answer.setSpeakingSpeed(request.getSpeakingSpeed());
+                
+                // Calculate Fluency Score based on speed and filler words
+                double speed = request.getSpeakingSpeed();
+                int fillers = request.getFillerWordsCount() != null ? request.getFillerWordsCount() : 0;
+                
+                double fluency = 100.0;
+                // Penalize for being too slow (< 100 wpm) or too fast (> 160 wpm)
+                if (speed < 100) {
+                    fluency -= (100 - speed) * 0.5;
+                } else if (speed > 160) {
+                    fluency -= (speed - 160) * 0.5;
+                }
+                
+                // Penalize for filler words
+                fluency -= fillers * 2.0;
+                
+                // Average with communication score if available
+                if (answer.getCommunicationScore() != null) {
+                    fluency = (fluency + answer.getCommunicationScore()) / 2.0;
+                }
+                
+                answer.setFluencyScore(Math.max(0.0, Math.min(100.0, fluency)));
+            }
+
         } catch (Exception e) {
             log.error("AI scoring failed for interview {}", 
                 (answer.getQuestion() != null && answer.getQuestion().getInterview() != null) 

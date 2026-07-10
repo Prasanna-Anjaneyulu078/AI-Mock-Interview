@@ -37,6 +37,13 @@ public class Answer {
     private Double codeQualityScore;
     private Double projectScore;
     private Double confidenceScore;
+    private Double fluencyScore;
+    
+    private Integer fillerWordsCount;
+    private Double speakingSpeed; // words per minute
+    
+    private Integer responseTimeSeconds;
+    private String difficultyLevel;
 
     @Column(columnDefinition = "TEXT")
     private String strengths;      // JSON array string
@@ -57,6 +64,11 @@ public class Answer {
     private String answerComparison;
 
     private String codeLanguage; // if code submission
+
+    @Column(columnDefinition = "TEXT")
+    private String recordingUrl;
+
+    private Double audioDuration;
 
     @Column(columnDefinition = "TEXT")
     private String codeExecutionResult; // Judge0 summary (passedTests/totalTests) for code answers

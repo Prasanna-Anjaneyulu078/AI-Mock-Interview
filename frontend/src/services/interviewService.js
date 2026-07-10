@@ -30,6 +30,11 @@ const startInterview = async (role, resumeId, interviewLevel, voiceSettings) => 
     voiceSpeed: voiceSettings?.voiceSpeed,
     voiceId: voiceSettings?.voiceId,
     style: voiceSettings?.style,
+    // FIX: forward interviewMode and targetQuestionCount
+    interviewMode: voiceSettings?.interviewMode,
+    codingLanguage: voiceSettings?.codingLanguage,
+    selectedInterests: voiceSettings?.selectedInterests,
+    targetQuestionCount: voiceSettings?.targetQuestionCount,
   });
   return response.data.data;
 };
@@ -39,8 +44,8 @@ const getMurfVoices = async () => {
   return response.data?.data || [];
 };
 
-const submitTextAnswer = async (interviewId, answer) => {
-  const response = await API.post(`/interview/${interviewId}/answer`, { answerText: answer });
+const submitTextAnswer = async (interviewId, answer, responseTimeSeconds) => {
+  const response = await API.post(`/interview/${interviewId}/answer`, { answerText: answer, responseTimeSeconds });
   return response.data.data;
 };
 
@@ -55,8 +60,20 @@ const transcribeAudio = async (audioBlob) => {
   return response.data.data;
 };
 
-const submitCode = async (interviewId, code, language) => {
-  const response = await API.post(`/interview/${interviewId}/code`, { code, language });
+const submitVoiceAnswer = async (interviewId, audioBlob, responseTimeSeconds) => {
+  const formData = new FormData();
+  formData.append('audio', audioBlob, 'answer.webm');
+  if (responseTimeSeconds) formData.append('responseTimeSeconds', responseTimeSeconds);
+
+  const response = await API.post(`/interview/${interviewId}/answer-audio`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data.data;
+};
+
+// FIX: include responseTimeSeconds in request body
+const submitCode = async (interviewId, code, language, responseTimeSeconds) => {
+  const response = await API.post(`/interview/${interviewId}/code`, { code, language, responseTimeSeconds });
   return response.data.data;
 };
 
@@ -81,16 +98,24 @@ const getWelcomeIntroduction = async (interviewId) => {
   return response.data.data;
 };
 
+// Generates TTS audio for given text using the interview's voice settings
+const generateSpeech = async (interviewId, text) => {
+  const response = await API.post(`/interview/${interviewId}/speak`, { text });
+  return response.data.data?.audio || null;
+};
+
 export {
   uploadResume,
   getResume,
   startInterview,
   getMurfVoices,
   submitTextAnswer,
+  submitVoiceAnswer,
   transcribeAudio,
   submitCode,
   runCode,
   endInterview,
   getInterview,
   getWelcomeIntroduction,
+  generateSpeech,
 };

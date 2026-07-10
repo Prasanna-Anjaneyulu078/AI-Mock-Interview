@@ -1,13 +1,15 @@
 import { useState, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext.jsx';
-import { BsCameraVideo, BsList, BsX } from 'react-icons/bs';
+import { useTheme } from '../../hooks/useTheme.js';
+import { BsCameraVideo, BsList, BsX, BsMoonFill, BsSunFill, BsDisplay } from 'react-icons/bs';
 import { MdDashboard, MdHistory, MdLogout } from 'react-icons/md';
 import { FaUser } from 'react-icons/fa';
 import './index.css';
 
 function Navbar() {
   const { user, logout } = useContext(AuthContext);
+  const { theme, toggleTheme, getActiveTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -20,6 +22,12 @@ function Navbar() {
 
   const handleNavClick = () => {
     setMenuOpen(false);
+  };
+
+  const renderThemeIcon = () => {
+    if (theme === 'light') return <BsSunFill className="theme-icon" />;
+    if (theme === 'dark') return <BsMoonFill className="theme-icon" />;
+    return <BsDisplay className="theme-icon" />;
   };
 
   return (
@@ -48,6 +56,9 @@ function Navbar() {
       </div>
 
       <div className="navbar-right">
+        <button className="theme-toggle-btn" onClick={toggleTheme} aria-label="Toggle theme">
+          {renderThemeIcon()}
+        </button>
         {user && (
           <div className="navbar-user-section">
             <FaUser className="user-icon" />
@@ -87,6 +98,12 @@ function Navbar() {
             <MdHistory className="mobile-nav-icon" />
             History
           </Link>
+          
+          <button className="mobile-theme-toggle" onClick={toggleTheme}>
+            {renderThemeIcon()}
+            <span>Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
+          </button>
+
           {user && (
             <div className="mobile-user-section">
               <div className="mobile-user-info">

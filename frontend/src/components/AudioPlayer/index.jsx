@@ -1,106 +1,98 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
+import { BsPlayFill, BsPauseFill, BsArrowCounterclockwise, BsVolumeUpFill, BsVolumeMuteFill } from 'react-icons/bs';
+import VoiceQueueService from '../../services/VoiceQueueService';
+import './index.css';
 
-/**
- * Plays interview audio. Accepts either a remote URL (Murf audioFile) or a
- * base64 data string (legacy/fallback).
- *
- * Resilience:
- *  - Guards against the classic play()/pause() race so unmounting an audio
- *    element never logs a spurious "interrupted by a call to pause()" error.
- *  - If the remote audio fails to load (e.g. expired Murf URL, network/CORS),
- *    it falls back to the browser's built-in Web Speech API (when text is
- *    supplied) so the interviewer still speaks. If that is unavailable, it just
- *    advances gracefully instead of crashing the flow.
- */
 function AudioPlayer({ audioSrc, autoPlay, onEnded, audioText }) {
-  const endedRef = useRef(false);
-  const onEndedRef = useRef(onEnded);
-  onEndedRef.current = onEnded;
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
-    if (!audioSrc) return;
-    endedRef.current = false;
+    // Bind UI state to the queue service
+    VoiceQueueService.onPlay = () => setIsPlaying(true);
+    VoiceQueueService.onStop = () => setIsPlaying(false);
 
-    let objectUrl = null;
-    let cancelled = false;
-    const audio = new Audio();
-
-    const finish = () => {
-      if (endedRef.current) return; // fire onEnded at most once
-      endedRef.current = true;
-      if (onEndedRef.current) onEndedRef.current();
-    };
-
-    const useSpeechFallback = () => {
-      if (audioText && typeof window !== 'undefined' && window.speechSynthesis) {
+    if (audioSrc && autoPlay) {
+      let finalSrc = audioSrc;
+      if (audioSrc.startsWith('JVBERi0x') || (!audioSrc.startsWith('http') && !audioSrc.startsWith('data:'))) {
         try {
-          const utterance = new SpeechSynthesisUtterance(audioText);
-          utterance.onend = finish;
-          utterance.onerror = finish;
-          window.speechSynthesis.cancel();
-          window.speechSynthesis.speak(utterance);
-          return;
-        } catch (_) {
-          /* fall through to plain advance */
-        }
+           const binaryString = atob(audioSrc);
+           const bytes = new Uint8Array(binaryString.length);
+           for (let i = 0; i < binaryString.length; i++) {
+             bytes[i] = binaryString.charCodeAt(i);
+           }
+           finalSrc = URL.createObjectURL(new Blob([bytes], { type: 'audio/mp3' }));
+        } catch(e) {}
       }
-      finish();
-    };
-
-    audio.onended = finish;
-    audio.onerror = () => {
-      console.warn('Audio unavailable, using speech fallback:', audioSrc);
-      useSpeechFallback();
-    };
-
-    const isBase64 =
-      audioSrc.startsWith('data:') ||
-      (!audioSrc.startsWith('http://') && !audioSrc.startsWith('https://'));
-
-    if (isBase64) {
-      try {
-        const binaryString = atob(audioSrc);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        objectUrl = URL.createObjectURL(new Blob([bytes], { type: 'audio/mp3' }));
-        audio.src = objectUrl;
-      } catch (e) {
-        console.warn('Failed to decode audio:', e);
-        useSpeechFallback();
-        return;
-      }
-    } else {
-      audio.src = audioSrc;
+      VoiceQueueService.playNow(finalSrc, onEnded);
     }
-
-    if (autoPlay) {
-      audio.play().catch((err) => {
-        if (cancelled) return; // interrupted by unmount -> ignore, not an error
-        console.warn('Audio autoplay unavailable:', err.message);
-        useSpeechFallback();
-      });
-    }
-
+    
     return () => {
-      cancelled = true;
-      try {
-        audio.onended = null;
-        audio.onerror = null;
-        audio.pause();
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-        audio.src = '';
-      } catch (_) {
-        /* ignore cleanup errors */
-      }
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
+      // Cleanup if unmounted while playing this specific instance
+      VoiceQueueService.onPlay = null;
+      VoiceQueueService.onStop = null;
     };
-  }, [audioSrc]);
+  }, [audioSrc, autoPlay]);
 
-  return null;
+  const togglePlay = () => {
+    if (isPlaying) {
+      VoiceQueueService.pause();
+    } else {
+      VoiceQueueService.resume();
+    }
+  };
+
+  const toggleMute = () => {
+    const nextMute = !isMuted;
+    setIsMuted(nextMute);
+    VoiceQueueService.setMute(nextMute);
+  };
+
+  const replay = () => {
+    if (audioSrc) {
+      let finalSrc = audioSrc;
+      if (!audioSrc.startsWith('http') && !audioSrc.startsWith('data:')) {
+        try {
+           const binaryString = atob(audioSrc);
+           const bytes = new Uint8Array(binaryString.length);
+           for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+           finalSrc = URL.createObjectURL(new Blob([bytes], { type: 'audio/mp3' }));
+        } catch(e) {}
+      }
+      VoiceQueueService.playNow(finalSrc, onEnded);
+    }
+  };
+
+  return (
+    <div className="audio-player-controls">
+      <button className="audio-ctrl-btn" onClick={togglePlay} title={isPlaying ? "Pause" : "Play"}>
+        {isPlaying ? <BsPauseFill /> : <BsPlayFill />}
+      </button>
+      <button className="audio-ctrl-btn" onClick={replay} title="Replay">
+        <BsArrowCounterclockwise />
+      </button>
+      <button className="audio-ctrl-btn" onClick={toggleMute} title={isMuted ? "Unmute" : "Mute"}>
+        {isMuted ? <BsVolumeMuteFill /> : <BsVolumeUpFill />}
+      </button>
+      <input 
+        type="range" 
+        min="0" max="1" step="0.1" 
+        defaultValue="1" 
+        className="audio-vol-slider"
+        onChange={(e) => VoiceQueueService.setVolume(parseFloat(e.target.value))}
+      />
+      <select 
+        className="audio-speed-select" 
+        defaultValue="1" 
+        onChange={(e) => VoiceQueueService.setSpeed(parseFloat(e.target.value))}
+      >
+        <option value="0.75">0.75x</option>
+        <option value="1">1x</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
+      </select>
+    </div>
+  );
 }
 
 export default AudioPlayer;

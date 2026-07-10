@@ -67,12 +67,12 @@ public class AIProviderRouter implements AIProvider {
     }
 
     @Override
-    public String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int count, String avoidList) {
+    public String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) {
         return executeWithFailover("generateQuestions",
-                () -> openRouter.generateQuestions(role, resumeContext, guidance, levelDifficulty, hr, tech, proj, count, avoidList),
-                () -> groq.generateQuestions(role, resumeContext, guidance, levelDifficulty, hr, tech, proj, count, avoidList),
-                () -> ollama.generateQuestions(role, resumeContext, guidance, levelDifficulty, hr, tech, proj, count, avoidList),
-                () -> localRule.generateQuestions(role, resumeContext, guidance, levelDifficulty, hr, tech, proj, count, avoidList));
+                () -> openRouter.generateQuestions(role, resumeContext, guidance, levelDifficulty, hr, tech, proj, codeCount, interestCount, selectedInterests, count, avoidList),
+                () -> groq.generateQuestions(role, resumeContext, guidance, levelDifficulty, hr, tech, proj, codeCount, interestCount, selectedInterests, count, avoidList),
+                () -> ollama.generateQuestions(role, resumeContext, guidance, levelDifficulty, hr, tech, proj, codeCount, interestCount, selectedInterests, count, avoidList),
+                () -> localRule.generateQuestions(role, resumeContext, guidance, levelDifficulty, hr, tech, proj, codeCount, interestCount, selectedInterests, count, avoidList));
     }
 
     @Override

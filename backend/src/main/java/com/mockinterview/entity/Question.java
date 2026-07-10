@@ -57,6 +57,37 @@ public class Question {
 
     private String codeLanguage; // e.g. "javascript", "python"
 
+    // ─── Coding Problem Detail Fields (Issue #2: LeetCode-style display) ───
+
+    /** Short display title, e.g. "Two Sum". */
+    private String title;
+
+    /** Full problem statement / description. */
+    @Column(columnDefinition = "TEXT")
+    private String problemDescription;
+
+    /** Example input for the problem, plain text or formatted. */
+    @Column(columnDefinition = "TEXT")
+    private String exampleInput;
+
+    /** Expected output matching the example input. */
+    @Column(columnDefinition = "TEXT")
+    private String exampleOutput;
+
+    /** Constraints on input size, value ranges, etc. */
+    @Column(columnDefinition = "TEXT")
+    private String constraints;
+
+    /** Starter code / template the candidate should fill in. */
+    @Column(columnDefinition = "TEXT")
+    private String starterCode;
+
+    /** Comma-separated tags, e.g. "Array, Hash Map, Two Pointers". */
+    private String tags;
+
+    /** Expected time complexity hint, e.g. "O(n)". */
+    private String timeComplexity;
+
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

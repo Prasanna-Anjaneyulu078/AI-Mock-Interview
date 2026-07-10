@@ -32,4 +32,18 @@ public class QuestionFeedbackDTO {
     private String strengths;
     private String weaknesses;
     private String recommendations;
+
+    // Coding Result details
+    private String codeLanguage;
+    private String codeSnippet;
+    private String compileOutput;
+    private Integer passedTests;
+    private Integer totalTests;
+    private String executionStatus;
+    
+    // Voice/Audio Feedback
+    private String recordingUrl;
+    private Double speakingSpeed;
+    private Double fluencyScore;
+    private Integer fillerWordsCount;
 }

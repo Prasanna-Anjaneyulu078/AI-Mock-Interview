@@ -45,4 +45,20 @@ public class Judge0Result {
 
     private String statusDescription;
     private String compileOutput;
+
+    private java.util.List<TestCaseDetail> testCaseResults = new java.util.ArrayList<>();
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TestCaseDetail {
+        private String name;
+        private boolean passed;
+        private String expectedOutput;
+        private String actualOutput;
+        private boolean isHidden;
+        private double time;
+        private double memory;
+    }
 }

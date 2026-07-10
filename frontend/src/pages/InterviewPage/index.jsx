@@ -3,11 +3,13 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   getInterview,
   submitTextAnswer,
+  submitVoiceAnswer,
   transcribeAudio,
   submitCode,
   runCode,
   endInterview,
   getWelcomeIntroduction,
+  generateSpeech,
 } from '../../services/interviewService.js';
 import VoiceRecorder from '../../components/VoiceRecorder';
 import AudioPlayer from '../../components/AudioPlayer';
@@ -37,6 +39,7 @@ function InterviewPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   const [interviewerState, setInterviewerState] = useState(STATE_SPEAKING);
 
@@ -53,10 +56,20 @@ function InterviewPage() {
   const [audioKey, setAudioKey] = useState(0);
 
   const [currentQuestionNum, setCurrentQuestionNum] = useState(1);
+  const [targetQuestions, setTargetQuestions] = useState(15);
   const [totalQuestions, setTotalQuestions] = useState(5);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [interviewerText, setInterviewerText] = useState('');
   const [farewellMessage, setFarewellMessage] = useState('');
+  
+  const [questionStartTime, setQuestionStartTime] = useState(null);
+
+  useEffect(() => {
+    return () => {
+      // Force halt any lingering audio when leaving the interview page
+      import('../../services/VoiceQueueService').then(m => m.default.stopAll());
+    };
+  }, []);
 
   useEffect(() => {
     const loadInterview = async () => {
@@ -64,6 +77,9 @@ function InterviewPage() {
         const data = await getInterview(id);
         setCurrentQuestionNum(data.currentQuestion);
         setTotalQuestions(data.totalQuestions);
+        // FIX: Initialize targetQuestions from interview data, not hardcoded 15
+        if (data.targetQuestions) setTargetQuestions(data.targetQuestions);
+        else if (data.totalQuestions) setTargetQuestions(data.totalQuestions);
 
         if (data.questions && data.questions.length > 0) {
           const qIndex = data.currentQuestion - 1;
@@ -98,14 +114,21 @@ function InterviewPage() {
                 setAudioKey((prev) => prev + 1);
               } else {
                 // No Murf audio available — advance after short delay
-                setTimeout(() => setInterviewerState(STATE_LISTENING), 4000);
+                setTimeout(() => {
+                  setInterviewerState(STATE_LISTENING);
+                  setQuestionStartTime(Date.now());
+                }, 4000);
               }
             } catch (_) {
-              setTimeout(() => setInterviewerState(STATE_LISTENING), 3000);
+              setTimeout(() => {
+                setInterviewerState(STATE_LISTENING);
+                setQuestionStartTime(Date.now());
+              }, 3000);
             }
           }
         } else {
           setInterviewerState(STATE_LISTENING);
+          setQuestionStartTime(Date.now());
         }
       } catch (error) {
         toast.error('Failed to load interview');
@@ -120,6 +143,7 @@ function InterviewPage() {
   const handleAudioEnded = () => {
     if (interviewerState === STATE_FAREWELL) return;
     setInterviewerState(STATE_LISTENING);
+    setQuestionStartTime(Date.now());
   };
 
   const resetAnswerFields = () => {
@@ -158,6 +182,7 @@ function InterviewPage() {
 
     setInterviewerText(result.response);
     setCurrentQuestionNum(result.currentQuestion);
+    if (result.targetQuestions) setTargetQuestions(result.targetQuestions);
     setCurrentQuestion(result.question);
     setCurrentAudio(result.audio);
     setAudioKey((prev) => prev + 1);
@@ -165,15 +190,41 @@ function InterviewPage() {
 
     setInterviewerState(STATE_SPEAKING);
     if (!result.audio) {
-      setTimeout(() => setInterviewerState(STATE_LISTENING), 3000);
+      // Voice fallback: try to generate TTS client-side when backend audio is null
+      if (result.question?.text) {
+        generateSpeech(id, (result.response || '') + ' ' + result.question.text)
+          .then((audioUrl) => {
+            if (audioUrl) {
+              setCurrentAudio(audioUrl);
+              setAudioKey((prev) => prev + 1);
+            } else {
+              setTimeout(() => {
+                setInterviewerState(STATE_LISTENING);
+                setQuestionStartTime(Date.now());
+              }, 3000);
+            }
+          })
+          .catch(() => {
+            setTimeout(() => {
+              setInterviewerState(STATE_LISTENING);
+              setQuestionStartTime(Date.now());
+            }, 3000);
+          });
+      } else {
+        setTimeout(() => {
+          setInterviewerState(STATE_LISTENING);
+          setQuestionStartTime(Date.now());
+        }, 3000);
+      }
     }
   };
 
   const submitAndProcess = async (answerText) => {
     setSubmitting(true);
     setInterviewerState(STATE_THINKING);
+    const responseTimeSeconds = questionStartTime ? Math.round((Date.now() - questionStartTime) / 1000) : 60;
     try {
-      const result = await submitTextAnswer(id, answerText);
+      const result = await submitTextAnswer(id, answerText, responseTimeSeconds);
       processAnswerResult(result);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to submit answer');
@@ -186,17 +237,12 @@ function InterviewPage() {
   const handleRecordingComplete = async (audioBlob) => {
     setSubmitting(true);
     setInterviewerState(STATE_THINKING);
+    const responseTimeSeconds = questionStartTime ? Math.round((Date.now() - questionStartTime) / 1000) : 60;
     try {
-      const data = await transcribeAudio(audioBlob);
-      const answerText =
-        data.text && !data.text.startsWith('[')
-          ? data.text
-          : 'The candidate provided a verbal response.';
-
-      const result = await submitTextAnswer(id, answerText);
+      const result = await submitVoiceAnswer(id, audioBlob, responseTimeSeconds);
       processAnswerResult(result);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to submit answer');
+      toast.error(error.response?.data?.message || 'Failed to submit audio answer');
       setInterviewerState(STATE_LISTENING);
     } finally {
       setSubmitting(false);
@@ -210,6 +256,10 @@ function InterviewPage() {
 
   const handleRunCode = async () => {
     if (!code.trim()) return toast.error('Please write some code to run.');
+    if (currentQuestion?.codeLanguage && currentQuestion.codeLanguage.toLowerCase() !== codeLanguage.toLowerCase()) {
+      return toast.error(`Please use ${currentQuestion.codeLanguage} for this question.`);
+    }
+
     setRunningCode(true);
     setRunCodeResult(null);
     try {
@@ -232,10 +282,15 @@ function InterviewPage() {
 
   const handleSubmitCode = async () => {
     if (!code.trim()) return toast.error('Please write some code.');
+    if (currentQuestion?.codeLanguage && currentQuestion.codeLanguage.toLowerCase() !== codeLanguage.toLowerCase()) {
+      return toast.error(`Please use ${currentQuestion.codeLanguage} for this question.`);
+    }
+
     setSubmitting(true);
     setInterviewerState(STATE_THINKING);
+    const responseTimeSeconds = questionStartTime ? Math.round((Date.now() - questionStartTime) / 1000) : 60;
     try {
-      const result = await submitCode(id, code, codeLanguage);
+      const result = await submitCode(id, code, codeLanguage, responseTimeSeconds);
 
       // FIX: same isComplete robustness as processAnswerResult
       const isComplete = result.isComplete === true || result.complete === true;
@@ -298,7 +353,7 @@ function InterviewPage() {
   }
 
   const isCodeQuestion = currentQuestion?.isCodeQuestion;
-  const progressPercent = (currentQuestionNum / totalQuestions) * 100;
+  const progressPercent = (currentQuestionNum / targetQuestions) * 100;
   const isSpeaking = interviewerState === STATE_SPEAKING;
   const isThinking = interviewerState === STATE_THINKING;
   const isListening = interviewerState === STATE_LISTENING;
@@ -309,7 +364,7 @@ function InterviewPage() {
       <div className="interview-topbar">
         <div className="topbar-left">
           <span className="topbar-question-label">
-            Question {currentQuestionNum} of {totalQuestions}
+            Question {currentQuestionNum} / {targetQuestions}
           </span>
           <div className="topbar-progress-track">
             <div
@@ -319,7 +374,7 @@ function InterviewPage() {
           </div>
         </div>
         <div className="topbar-right">
-          {currentQuestionNum >= totalQuestions && isListening && (
+          {currentQuestionNum >= targetQuestions && isListening && (
             <button
               className={`topbar-end-btn ${ending ? 'topbar-end-btn-disabled' : ''}`}
               onClick={handleEndInterview}
@@ -370,7 +425,7 @@ function InterviewPage() {
           )}
         </div>
 
-        {currentAudio && (
+        {currentAudio && !isRecording && (
           <AudioPlayer
             key={audioKey}
             audioSrc={currentAudio}
@@ -390,17 +445,6 @@ function InterviewPage() {
         {!isFarewell && !isThinking && interviewerText && (
           <div className="interviewer-message-block">
             <p className="interviewer-message-text">{interviewerText}</p>
-            {isListening && currentAudio && (
-              <button
-                className="interviewer-hear-again-link"
-                onClick={() => {
-                  setAudioKey((prev) => prev + 1);
-                  setInterviewerState(STATE_SPEAKING);
-                }}
-              >
-                Hear Again
-              </button>
-            )}
           </div>
         )}
 
@@ -414,10 +458,56 @@ function InterviewPage() {
                   <BsCodeSlash className="question-code-icon" /> Code
                 </span>
               )}
+              {isCodeQuestion && currentQuestion.tags && (
+                <span className="question-tags-badge">{currentQuestion.tags}</span>
+              )}
             </div>
-            <p className="question-callout-text">{currentQuestion.text}</p>
+
+            {/* LeetCode-style coding question display */}
+            {isCodeQuestion ? (
+              <div className="coding-problem-panel">
+                {currentQuestion.title && (
+                  <h3 className="coding-problem-title">{currentQuestion.title}</h3>
+                )}
+                <p className="coding-problem-description">
+                  {currentQuestion.problemDescription || currentQuestion.text}
+                </p>
+                {(currentQuestion.exampleInput || currentQuestion.exampleOutput) && (
+                  <div className="coding-problem-example">
+                    <h4 className="coding-example-label">Example</h4>
+                    {currentQuestion.exampleInput && (
+                      <div className="coding-example-row">
+                        <span className="coding-example-key">Input:</span>
+                        <code className="coding-example-val">{currentQuestion.exampleInput}</code>
+                      </div>
+                    )}
+                    {currentQuestion.exampleOutput && (
+                      <div className="coding-example-row">
+                        <span className="coding-example-key">Output:</span>
+                        <code className="coding-example-val">{currentQuestion.exampleOutput}</code>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {currentQuestion.constraints && (
+                  <div className="coding-problem-constraints">
+                    <h4 className="coding-constraints-label">Constraints</h4>
+                    <pre className="coding-constraints-text">{currentQuestion.constraints}</pre>
+                  </div>
+                )}
+                {currentQuestion.timeComplexity && (
+                  <div className="coding-problem-hint">
+                    <span className="coding-hint-label">Expected:</span>
+                    <code className="coding-hint-val">{currentQuestion.timeComplexity}</code>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="question-callout-text">{currentQuestion.text}</p>
+            )}
           </div>
         )}
+
       </div>
 
       <div className="answer-panel">
@@ -438,7 +528,9 @@ function InterviewPage() {
                     {!submitting && (
                       <VoiceRecorder
                         onRecordingComplete={handleRecordingComplete}
-                        disabled={submitting}
+                        onRecordingStart={() => setIsRecording(true)}
+                        onRecordingStop={() => setIsRecording(false)}
+                        disabled={submitting || isSpeaking}
                         autoStart={true}
                       />
                     )}
@@ -536,161 +628,72 @@ function InterviewPage() {
                   </div>
                 )}
 
-                {currentQuestion.codeType !== 'explain' ? (
-                  <>
-                    <CodeEditor
-                      value={
-                        code ||
-                        (currentQuestion.codeType === 'fix'
-                          ? currentQuestion.codeSnippet || ''
-                          : '')
-                      }
-                      onChange={(val) => setCode(val || '')}
-                      language={currentQuestion.codeLanguage || codeLanguage}
-                    />
-                    <div className="code-action-buttons">
-                      <button
-                        className={`run-code-btn ${runningCode || !code.trim() ? 'run-code-btn-disabled' : ''}`}
-                        onClick={handleRunCode}
-                        disabled={runningCode || submitting || !code.trim()}
-                      >
-                        {runningCode ? '▶ Running...' : '▶ Run Code'}
-                      </button>
-                      <button
-                        className={`submit-code-btn ${submitting || !code.trim() ? 'submit-code-btn-disabled' : ''}`}
-                        onClick={handleSubmitCode}
-                        disabled={submitting || runningCode || !code.trim()}
-                      >
-                        {submitting
-                          ? 'Evaluating...'
-                          : currentQuestion.codeType === 'fix'
-                          ? 'Submit Fixed Code'
-                          : 'Submit Solution'}
-                      </button>
-                    </div>
+                <CodeEditor
+                  value={
+                    code ||
+                    currentQuestion.starterCode ||
+                    currentQuestion.codeSnippet ||
+                    ''
+                  }
+                  onChange={(val) => setCode(val || '')}
+                  language={currentQuestion.codeLanguage || codeLanguage}
+                />
+                <div className="code-action-buttons">
+                  <button
+                    className={`run-code-btn ${runningCode || !code.trim() ? 'run-code-btn-disabled' : ''}`}
+                    onClick={handleRunCode}
+                    disabled={runningCode || submitting || !code.trim()}
+                  >
+                    {runningCode ? '▶ Running...' : '▶ Run Code'}
+                  </button>
+                  <button
+                    className={`submit-code-btn ${submitting || !code.trim() ? 'submit-code-btn-disabled' : ''}`}
+                    onClick={handleSubmitCode}
+                    disabled={submitting || runningCode || !code.trim()}
+                  >
+                    {submitting
+                      ? 'Evaluating...'
+                      : currentQuestion.codeType === 'fix'
+                      ? 'Submit Fixed Code'
+                      : 'Submit Solution'}
+                  </button>
+                </div>
 
-                    {/* Phase 7: Test Results Panel */}
-                    {runCodeResult && (
-                      <div className={`code-results-panel ${runCodeResult.passed ? 'code-results-pass' : 'code-results-fail'}`}>
-                        <div className="code-results-header">
-                          {runCodeResult.error ? (
-                            <span className="code-results-status-fail">⚠ Execution Unavailable</span>
-                          ) : runCodeResult.passed ? (
-                            <span className="code-results-status-pass">✅ All Sample Tests Passed ({runCodeResult.passedTests}/{runCodeResult.totalTests})</span>
-                          ) : (
-                            <span className="code-results-status-fail">❌ {runCodeResult.passedTests ?? 0}/{runCodeResult.totalTests ?? 0} Sample Tests Passed</span>
-                          )}
-                          {runCodeResult.executionTime > 0 && (
-                            <span className="code-results-meta">
-                              ⏱ {runCodeResult.executionTime}s · 💾 {runCodeResult.memoryUsage} KB
-                            </span>
-                          )}
-                        </div>
-                        {runCodeResult.compileOutput && (
-                          <pre className="code-results-output code-results-error">
-                            <strong>Compile Error:</strong>{'\n'}{runCodeResult.compileOutput}
-                          </pre>
-                        )}
-                        {runCodeResult.stdout && (
-                          <pre className="code-results-output">
-                            <strong>Output:</strong>{'\n'}{runCodeResult.stdout}
-                          </pre>
-                        )}
-                        {runCodeResult.stderr && (
-                          <pre className="code-results-output code-results-error">
-                            <strong>Error:</strong>{'\n'}{runCodeResult.stderr}
-                          </pre>
-                        )}
-                        {runCodeResult.note && (
-                          <p className="code-results-note">{runCodeResult.note}</p>
-                        )}
-                      </div>
+                {/* Phase 7: Test Results Panel */}
+                {runCodeResult && (
+                  <div className={`code-results-panel ${runCodeResult.passed ? 'code-results-pass' : 'code-results-fail'}`}>
+                    <div className="code-results-header">
+                      {runCodeResult.error ? (
+                        <span className="code-results-status-fail">⚠ Execution Unavailable</span>
+                      ) : runCodeResult.passed ? (
+                        <span className="code-results-status-pass">✅ All Sample Tests Passed ({runCodeResult.passedTests}/{runCodeResult.totalTests})</span>
+                      ) : (
+                        <span className="code-results-status-fail">❌ {runCodeResult.passedTests ?? 0}/{runCodeResult.totalTests ?? 0} Sample Tests Passed</span>
+                      )}
+                      {runCodeResult.executionTime > 0 && (
+                        <span className="code-results-meta">
+                          ⏱ {runCodeResult.executionTime}s · 💾 {runCodeResult.memoryUsage} KB
+                        </span>
+                      )}
+                    </div>
+                    {runCodeResult.compileOutput && (
+                      <pre className="code-results-output code-results-error">
+                        <strong>Compile Error:</strong>{'\n'}{runCodeResult.compileOutput}
+                      </pre>
                     )}
-                  </>
-
-                ) : (
-                  <div className="explain-answer-block">
-                    <p className="explain-hint-text">
-                      Explain verbally what this code does, or type your
-                      explanation below.
-                    </p>
-
-                    <div className="voice-block-area">
-                      {!submitting && (
-                        <VoiceRecorder
-                          onRecordingComplete={async (audioBlob) => {
-                            setSubmitting(true);
-                            setInterviewerState(STATE_THINKING);
-                            try {
-                              const data = await transcribeAudio(audioBlob);
-                              const text =
-                                data.text || 'Verbal explanation provided.';
-                              setCode(text);
-                              setTimeout(() => handleSubmitCode(), 100);
-                            } catch (error) {
-                              setCode('Verbal explanation provided.');
-                              setTimeout(() => handleSubmitCode(), 100);
-                            }
-                          }}
-                          disabled={submitting}
-                        />
-                      )}
-                      {submitting && (
-                        <div className="processing-indicator">
-                          <div
-                            className="spinner-border spinner-border-sm"
-                            role="status"
-                          />
-                          <p className="processing-text">
-                            Processing your explanation...
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="text-fallback-block">
-                      <button
-                        className="text-fallback-toggle-btn"
-                        onClick={() => setShowTextFallback(!showTextFallback)}
-                      >
-                        <span className="text-fallback-toggle-label">
-                          <BsKeyboardFill className="text-fallback-icon" />
-                          {showTextFallback
-                            ? 'Hide'
-                            : 'Prefer typing your explanation?'}
-                        </span>
-                        <span
-                          className={
-                            showTextFallback
-                              ? 'toggle-arrow-open'
-                              : 'toggle-arrow-closed'
-                          }
-                        >
-                          &#9660;
-                        </span>
-                      </button>
-                      {showTextFallback && (
-                        <div className="text-answer-block">
-                          <textarea
-                            className={`text-answer-textarea ${submitting ? 'text-answer-textarea-disabled' : ''}`}
-                            placeholder="Type your explanation... What does this code do?"
-                            value={code}
-                            onChange={(e) => setCode(e.target.value)}
-                            rows={4}
-                            disabled={submitting}
-                          />
-                          <button
-                            className={`submit-code-btn ${submitting || !code.trim() ? 'submit-code-btn-disabled' : ''}`}
-                            onClick={handleSubmitCode}
-                            disabled={submitting || !code.trim()}
-                          >
-                            {submitting
-                              ? 'Evaluating...'
-                              : 'Submit Explanation'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    {runCodeResult.stdout && (
+                      <pre className="code-results-output">
+                        <strong>Output:</strong>{'\n'}{runCodeResult.stdout}
+                      </pre>
+                    )}
+                    {runCodeResult.stderr && (
+                      <pre className="code-results-output code-results-error">
+                        <strong>Error:</strong>{'\n'}{runCodeResult.stderr}
+                      </pre>
+                    )}
+                    {runCodeResult.note && (
+                      <p className="code-results-note">{runCodeResult.note}</p>
+                    )}
                   </div>
                 )}
 
@@ -762,7 +765,7 @@ function InterviewPage() {
 
       <div className="interview-timeline">
         <div className="timeline-dots-row">
-          {Array.from({ length: totalQuestions }, (_, i) => {
+          {Array.from({ length: targetQuestions }, (_, i) => {
             const qNum = i + 1;
             const isAnswered = qNum < currentQuestionNum;
             const isCurrent = qNum === currentQuestionNum;

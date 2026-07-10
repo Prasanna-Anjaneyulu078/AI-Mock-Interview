@@ -23,7 +23,7 @@ class MurfServiceTest {
     void setUp() {
         restTemplate = new RestTemplate();
         server = MockRestServiceServer.bindTo(restTemplate).build();
-        murfService = new MurfService(restTemplate, "test-key", "en-US-natalie", "Conversational", 5000, 3);
+        murfService = new MurfService(restTemplate, "test-key", "en-US-natalie", "Conversational", 5000, 3, new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
     }
 
     @Test
@@ -69,7 +69,7 @@ class MurfServiceTest {
 
     @Test
     void returnsNullWhenApiKeyMissing() {
-        MurfService noKey = new MurfService(restTemplate, "  ", "en-US-natalie", "Conversational", 5000, 3);
+        MurfService noKey = new MurfService(restTemplate, "  ", "en-US-natalie", "Conversational", 5000, 3, new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
         assertNull(noKey.generateSpeech("Hi"));
         server.verify(); // no HTTP call made
     }
