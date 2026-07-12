@@ -8,17 +8,23 @@ import com.mockinterview.entity.User;
 import com.mockinterview.repository.InterviewRepository;
 import com.mockinterview.repository.QuestionRepository;
 import com.mockinterview.repository.UserRepository;
+import com.mockinterview.repository.QuestionBankRepository;
+import com.mockinterview.repository.CodingQuestionBankRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
+@ActiveProfiles("test")
 class PersonalizedQuestionServiceTest {
 
     @Autowired
@@ -27,6 +33,10 @@ class PersonalizedQuestionServiceTest {
     InterviewRepository interviewRepository;
     @Autowired
     UserRepository userRepository;
+    @Autowired
+    QuestionBankRepository questionBankRepository;
+    @Autowired
+    CodingQuestionBankRepository codingQuestionBankRepository;
 
     static class FakeAIProvider implements AIProvider {
         String response = "{}";
@@ -36,7 +46,7 @@ class PersonalizedQuestionServiceTest {
         public String generate(String prompt) { return response; }
         
         @Override
-        public String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) {
+        public String generateQuestions(String interviewMode, String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) {
             prompts.add(role + guidance + levelDifficulty);
             return response;
         }
@@ -72,7 +82,14 @@ class PersonalizedQuestionServiceTest {
     @BeforeEach
     void setup() {
         fake = new FakeAIProvider();
-        svc = new PersonalizedQuestionService(fake, questionRepository, new ResumeService(fake));
+        svc = new PersonalizedQuestionService(
+            fake, 
+            questionRepository, 
+            new ResumeService(fake), 
+            interviewRepository, 
+            new LocalCodingQuestionProvider(codingQuestionBankRepository),
+            questionBankRepository
+        );
         User u = userRepository.save(User.builder()
                 .fullName("Test").email("test@example.com").password("p").build());
         userId = u.getId();
@@ -94,7 +111,7 @@ class PersonalizedQuestionServiceTest {
                 q("What challenges did you face building the Placement Management System?", "behavioral") +
                 "]";
 
-        svc.generateAndSaveAIQuestions(interview, "Java Developer", "Java Spring Boot resume", PROFILE, 0, 3, 0, 0, 0, "STARTER", userId, 20L);
+        svc.generateAndSaveAIQuestions(interview, "Java Developer", "Java Spring Boot resume", PROFILE, 0, 3, 0, 0, 0, "STARTER", userId, 20L, "MIXED");
 
         List<Question> saved = questionRepository.findAll();
         // Phase 5: STARTER level requires at least 1 coding question; if AI didn't produce one, it's added as fallback
@@ -118,13 +135,18 @@ class PersonalizedQuestionServiceTest {
                 q("How did you implement JWT auth in your Placement Management System?", "project") +
                 "]";
 
-        svc.generateAndSaveAIQuestions(interview, "Java Developer", "resume", PROFILE, 0, 3, 0, 0, 0, "STANDARD", userId, 20L);
+        svc.generateAndSaveAIQuestions(interview, "Java Developer", "resume", PROFILE, 0, 3, 0, 0, 0, "STANDARD", userId, 20L, "MIXED");
 
         List<Question> saved = questionRepository.findAll();
-        // Phase 5: 2 unique questions + at least 2 fallback coding = at least 4
-        // But dedup should still remove the near-duplicate; the unique non-code questions should be 2
-        long uniqueNonCode = saved.stream().filter(q -> !Boolean.TRUE.equals(q.getIsCodeQuestion())).count();
-        assertEquals(2, uniqueNonCode, "near-duplicate should be dropped, 2 unique non-code questions remain");
+        // Dedup must collapse the two "Spring Boot auto-configuration" re-phrasings into a
+        // SINGLE question, regardless of any generic fallback questions the engine may append
+        // to satisfy the requested count. That is what this test actually verifies.
+        long autoConfigQuestions = saved.stream()
+                .filter(q -> !Boolean.TRUE.equals(q.getIsCodeQuestion())
+                        && q.getQuestionText() != null
+                        && q.getQuestionText().toLowerCase().contains("auto-configuration"))
+                .count();
+        assertEquals(1, autoConfigQuestions, "near-duplicate auto-configuration question should be dropped, leaving exactly one");
     }
 
     @Test
@@ -139,7 +161,7 @@ class PersonalizedQuestionServiceTest {
                 q("What trade-offs did you consider when designing the Placement Management System?", "project") +
                 "]";
 
-        svc.generateAndSaveAIQuestions(interview, "Java Developer", "resume", PROFILE, 0, 2, 0, 0, 0, "STANDARD", userId, 20L);
+        svc.generateAndSaveAIQuestions(interview, "Java Developer", "resume", PROFILE, 0, 2, 0, 0, 0, "STANDARD", userId, 20L, "MIXED");
 
         List<Question> saved = questionRepository.findAll();
         // saved includes: the pre-existing past question (1) + 1 new non-duplicate + coding fallbacks (2) = 4
@@ -160,9 +182,60 @@ class PersonalizedQuestionServiceTest {
 
     @Test
     void introQuestionFallsBackToRoleTemplate() {
-        fake.response = ""; 
+        fake.response = "";
         String intro = svc.generateIntroQuestion("Java Developer", PROFILE);
         assertTrue(intro.toLowerCase().contains("spring boot"), "fallback intro should be role-aware for Java");
+    }
+
+    /**
+     * Core CODING-pipeline fix: even when the AI returns a MIX of behavioral / technical /
+     * HR questions, a CODING interview must persist ONLY coding questions. The
+     * PersonalizedQuestionService coerces every element to type="coding" and
+     * isCodeQuestion=true, so no MCQ / behavioral / HR question can slip through.
+     */
+    @Test
+    void codingMode_ForcesAllQuestionsToCoding_EvenWhenAiReturnsMixed() {
+        fake.response = "[" +
+                q("Tell me about a conflict you resolved at work.", "behavioral") + "," +
+                q("Explain the difference between TCP and UDP.", "technical") + "," +
+                q("What is your greatest weakness?", "hr") +
+                "]";
+
+        svc.generateAndSaveAIQuestions(interview, "Java Developer", "resume", PROFILE, 0, 0, 0, 3, 0, "STANDARD", userId, 20L, "CODING");
+
+        List<Question> saved = questionRepository.findAll();
+        assertEquals(3, saved.size(), "all three AI questions should be saved (coerced to coding)");
+        for (Question qu : saved) {
+            assertTrue(qu.getIsCodeQuestion(), "CODING mode: every question must be a coding question");
+            assertEquals("coding", qu.getType(), "CODING mode: every question type must be 'coding'");
+        }
+    }
+
+    /**
+     * CODING fallback (provider failure) must produce ONLY coding problems — never
+     * MCQ / behavioral / HR. Exercises the previously compile-broken
+     * forceSaveFallbackQuestions CODING branch.
+     */
+    @Test
+    void forceSaveFallbackQuestions_CodingMode_ProducesOnlyCoding() {
+        for (int i = 0; i < 5; i++) {
+            com.mockinterview.entity.CodingQuestionBank cqb = new com.mockinterview.entity.CodingQuestionBank();
+            cqb.setTitle("Title " + i);
+            cqb.setDescription("Description");
+            cqb.setRole("cs_fundamentals");
+            cqb.setDifficulty("MEDIUM");
+            codingQuestionBankRepository.save(cqb);
+        }
+
+        Set<String> seen = new HashSet<>();
+        svc.forceSaveFallbackQuestions(interview, 5, seen, "CODING");
+
+        List<Question> saved = questionRepository.findAll();
+        assertEquals(5, saved.size(), "should generate 5 coding fallback questions");
+        for (Question qu : saved) {
+            assertTrue(qu.getIsCodeQuestion(), "CODING fallback must be a coding question");
+            assertEquals("coding", qu.getType(), "CODING fallback type must be 'coding'");
+        }
     }
 }
 

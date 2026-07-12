@@ -8,8 +8,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -28,7 +26,7 @@ class ScoringServiceTest {
     void setUp() {
         AIProvider fakeAI = new AIProvider() {
             @Override public String generate(String prompt) { return null; }
-            @Override public String generateQuestions(String role, String resumeContext, String guidance,
+            @Override public String generateQuestions(String interviewMode, String role, String resumeContext, String guidance,
                     String levelDifficulty, int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) { return "[]"; }
             @Override public String generateIntroQuestion(String role, String structuredProfile) { return "Tell me about yourself."; }
             @Override public String generateFollowUp(String question, String answer, String role, String difficulty, String resumeContext) { return "[]"; }

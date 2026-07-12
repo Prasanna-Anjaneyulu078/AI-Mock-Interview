@@ -45,7 +45,9 @@ public class Judge0Result {
 
     private String statusDescription;
     private String compileOutput;
+    private String error;
 
+    @Builder.Default
     private java.util.List<TestCaseDetail> testCaseResults = new java.util.ArrayList<>();
 
     @Data

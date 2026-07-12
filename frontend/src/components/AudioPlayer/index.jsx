@@ -1,18 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { BsPlayFill, BsPauseFill, BsArrowCounterclockwise, BsVolumeUpFill, BsVolumeMuteFill } from 'react-icons/bs';
 import VoiceQueueService from '../../services/VoiceQueueService';
 import './index.css';
 
-function AudioPlayer({ audioSrc, autoPlay, onEnded, audioText }) {
+function AudioPlayer({ audioSrc, autoPlay, onEnded, audioText, onPlayStart, onPlayEnd, onReplay }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const lastPlayedRef = useRef(null);
 
   useEffect(() => {
     // Bind UI state to the queue service
-    VoiceQueueService.onPlay = () => setIsPlaying(true);
-    VoiceQueueService.onStop = () => setIsPlaying(false);
+    VoiceQueueService.onPlay = () => {
+      setIsPlaying(true);
+      if (onPlayStart) onPlayStart();
+    };
+    VoiceQueueService.onStop = () => {
+      setIsPlaying(false);
+      if (onPlayEnd) onPlayEnd();
+    };
 
-    if (audioSrc && autoPlay) {
+    if (audioSrc && autoPlay && lastPlayedRef.current !== audioSrc) {
+      lastPlayedRef.current = audioSrc;
       let finalSrc = audioSrc;
       if (audioSrc.startsWith('JVBERi0x') || (!audioSrc.startsWith('http') && !audioSrc.startsWith('data:'))) {
         try {
@@ -32,7 +40,7 @@ function AudioPlayer({ audioSrc, autoPlay, onEnded, audioText }) {
       VoiceQueueService.onPlay = null;
       VoiceQueueService.onStop = null;
     };
-  }, [audioSrc, autoPlay]);
+  }, [audioSrc, autoPlay, onPlayStart, onPlayEnd, onEnded]);
 
   const togglePlay = () => {
     if (isPlaying) {
@@ -49,6 +57,7 @@ function AudioPlayer({ audioSrc, autoPlay, onEnded, audioText }) {
   };
 
   const replay = () => {
+    if (onReplay) onReplay();
     if (audioSrc) {
       let finalSrc = audioSrc;
       if (!audioSrc.startsWith('http') && !audioSrc.startsWith('data:')) {

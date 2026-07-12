@@ -33,7 +33,12 @@ public class InterviewController {
 
     @PostMapping("/start")
     @Operation(summary = "Start a new interview")
-    public ResponseEntity<ApiResponse<InterviewResponse>> startInterview(@Valid @RequestBody InterviewRequest request, Authentication authentication) {
+    public ResponseEntity<?> startInterview(@Valid @RequestBody InterviewRequest request, Authentication authentication) {
+        String reqMode = request.getMode() != null ? request.getMode() : request.getInterviewMode();
+        if ("SYSTEM_DESIGN".equals(reqMode)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
+                    .body(java.util.Map.of("error", "Interview mode not supported"));
+        }
         User user = getUser(authentication);
         InterviewResponse response = interviewService.startInterview(user.getId(), request);
         return ResponseEntity.ok(ApiResponse.success("Interview started", response));

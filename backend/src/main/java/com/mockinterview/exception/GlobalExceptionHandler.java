@@ -20,6 +20,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidationException(ValidationException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorizedException(UnauthorizedException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ex.getMessage()));
@@ -59,9 +64,76 @@ public class GlobalExceptionHandler {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    /**
+     * Maps the backend errorCode to a short, structured error type consumed by the
+     * frontend notification UI (e.g. RATE_LIMIT_EXCEEDED -> RATE_LIMIT).
+     */
+    private static String toErrorType(String errorCode) {
+        if (errorCode == null) return "UNKNOWN";
+        return switch (errorCode) {
+            case "RATE_LIMIT_EXCEEDED" -> "RATE_LIMIT";
+            case "INSUFFICIENT_CREDITS" -> "CREDITS_EXHAUSTED";
+            case "ACCESS_DENIED" -> "ACCESS_DENIED";
+            case "AI_PROVIDER_LIMIT" -> "QUOTA_EXCEEDED";
+            case "INVALID_API_KEY" -> "AUTH_ERROR";
+            case "SUBSCRIPTION_INACTIVE" -> "SUBSCRIPTION";
+            case "JUDGE0_FORBIDDEN" -> "FORBIDDEN";
+            case "JUDGE0_UNAVAILABLE" -> "UNAVAILABLE";
+            case "ALL_PROVIDERS_FAILED" -> "ALL_PROVIDERS_FAILED";
+            case "NO_PROVIDERS_CONFIGURED" -> "NO_PROVIDERS_CONFIGURED";
+            case "INTERNAL_ERROR" -> "INTERNAL_ERROR";
+            default -> errorCode;
+        };
+    }
+
+    @ExceptionHandler(AIProviderException.class)
+    public ResponseEntity<Map<String, Object>> handleAIProviderException(AIProviderException ex) {
+        log.warn("AI Provider Error: {}", ex.getErrorMessage());
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", false);
+        body.put("provider", ex.getProviderName());
+        body.put("status", ex.getHttpStatus());
+        body.put("errorCode", ex.getErrorCode());
+        body.put("errorType", toErrorType(ex.getErrorCode()));
+        body.put("message", ex.getErrorMessage());
+        body.put("fallbackUsed", ex.isFallbackUsed());
+        body.put("fallbackActivated", ex.isFallbackUsed());
+        if (ex.getRetryAfter() != null) {
+            body.put("retryAfter", ex.getRetryAfter());
+        }
+        if (ex.getFallbackData() != null) {
+            body.put("fallbackData", ex.getFallbackData());
+        }
+        if (ex.getSelectedInterviewMode() != null) {
+            body.put("selectedInterviewMode", ex.getSelectedInterviewMode());
+        }
+        if (ex.getQuestionSource() != null) {
+            body.put("questionSource", ex.getQuestionSource());
+        }
+        if (ex.getSubErrors() != null) {
+            // Include sub errors for the "AI Services Currently Unavailable" aggregated error
+            body.put("subErrors", ex.getSubErrors());
+        }
+        return ResponseEntity.status(ex.getHttpStatus() > 0 ? ex.getHttpStatus() : HttpStatus.TOO_MANY_REQUESTS.value())
+                .body(body);
+    }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGlobalException(Exception ex) {
+    public ResponseEntity<Map<String, Object>> handleGlobalException(Exception ex, org.springframework.web.context.request.WebRequest request) {
         log.error("Unhandled exception resulting in 500: ", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ex.getMessage()));
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", java.time.LocalDateTime.now());
+        body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        body.put("error", HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase());
+        
+        // NullPointerException has a null message, provide a fallback.
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) {
+            message = "An unexpected internal server error occurred.";
+        }
+        body.put("message", message);
+        body.put("path", request.getDescription(false).replace("uri=", ""));
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 }

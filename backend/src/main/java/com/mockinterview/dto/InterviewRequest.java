@@ -21,6 +21,12 @@ public class InterviewRequest {
 
     // Next-Gen additions
     private String interviewMode;
+    /**
+     * Canonical mode alias. The redesigned Setup UI sends {@code mode}
+     * (e.g. CODING, TECHNICAL, BEHAVIORAL, RESUME_BASED); older
+     * clients send {@code interviewMode}. The service resolves either.
+     */
+    private String mode;
     private String codingLanguage;
     private String selectedInterests;
     private Integer targetQuestionCount;

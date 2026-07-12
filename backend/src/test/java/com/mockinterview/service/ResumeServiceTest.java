@@ -17,7 +17,7 @@ class ResumeServiceTest {
         @Override
         public String generate(String prompt) { return response; }
         @Override
-        public String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) { return response; }
+        public String generateQuestions(String interviewMode, String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) { return response; }
         @Override
         public String generateIntroQuestion(String role, String structuredProfile) { return response; }
         @Override

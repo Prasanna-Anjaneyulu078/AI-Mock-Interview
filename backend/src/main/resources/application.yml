@@ -82,7 +82,7 @@ app:
       max-polls: ${ASSEMBLYAI_MAX_POLLS:20}
     murf:
       api-key: ${MURF_API_KEY:}
-      default-voice: ${MURF_DEFAULT_VOICE:en-US-natalie}
+      default-voice: ${MURF_DEFAULT_VOICE:en-IN-esha}
       default-style: ${MURF_DEFAULT_STYLE:Conversational}
       timeout-ms: ${MURF_TIMEOUT_MS:10000}
       max-retries: ${MURF_MAX_RETRIES:3}

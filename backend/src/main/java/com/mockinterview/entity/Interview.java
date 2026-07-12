@@ -91,4 +91,10 @@ public class Interview {
 
     // Link back to the resume used for this interview (enables same-resume dedup)
     private Long resumeId;
+
+    // AI Provider Fallback Error Reporting
+    private Boolean fallbackActivated;
+    private String aiProviderUsed;
+    private String providerError;
+    private String interviewSource;
 }

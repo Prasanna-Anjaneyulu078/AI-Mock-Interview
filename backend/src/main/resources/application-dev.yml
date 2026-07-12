@@ -1,7 +1,6 @@
-# Local development profile.
-# Uses an in-memory H2 database so the backend boots with zero external
-# dependencies (no PostgreSQL required). Your production PostgreSQL config
-# in application.yml is untouched; activate this with SPRING_PROFILES_ACTIVE=dev.
+﻿# Local development profile.
+# Uses local PostgreSQL database.
+# Activate this with SPRING_PROFILES_ACTIVE=dev.
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/mockinterview

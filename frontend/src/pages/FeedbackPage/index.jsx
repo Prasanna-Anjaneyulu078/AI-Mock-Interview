@@ -29,6 +29,7 @@ import {
   BsPersonBadgeFill,
   BsXCircleFill,
   BsQuestionCircleFill,
+  BsGraphUp,
 } from 'react-icons/bs';
 import toast from 'react-hot-toast';
 import './index.css';
@@ -241,10 +242,24 @@ function FeedbackPage() {
               <h1 className="feedback-heading">Interview Feedback</h1>
               <p className="feedback-role-text">{role}</p>
               <p className="feedback-date-text">
-                {new Date(interview.createdAt).toLocaleDateString('en-US', {
-                  weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-                })}
-              </p>
+              {(() => {
+                try {
+                  const val = interview.createdAt;
+                  if (!val) return 'Date unknown';
+                  let d;
+                  if (Array.isArray(val) && val.length >= 3) {
+                    d = new Date(val[0], val[1] - 1, val[2], val[3] || 0, val[4] || 0, val[5] || 0);
+                  } else {
+                    d = new Date(val);
+                  }
+                  return d.toLocaleDateString('en-US', {
+                    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+                  });
+                } catch (e) {
+                  return 'Date unknown';
+                }
+              })()}
+            </p>
             </div>
             
             {/* Hiring Recommendation Badge */}

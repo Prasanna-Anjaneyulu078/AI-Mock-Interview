@@ -106,6 +106,11 @@
   cursor: not-allowed;
 }
 
+/* Mobile sticky End Interview action — hidden on desktop, shown < 992px */
+.interview-mobile-endbtn {
+  display: none;
+}
+
 /* ==============================
    LEFT PANEL - INTERVIEWER
    ============================== */
@@ -716,6 +721,8 @@
     min-height: 100vh;
     max-height: none;
     overflow: visible;
+    /* reserve space for the fixed mobile End Interview bar */
+    padding-bottom: 58px;
   }
 
   .answer-panel {
@@ -729,10 +736,13 @@
     overflow-y: visible;
   }
 
+  /* End Interview moves from the top-right to a sticky footer on mobile */
+  .topbar-right {
+    display: none;
+  }
+
   .interview-timeline {
-    position: sticky;
-    bottom: 0;
-    z-index: 10;
+    position: static;
   }
 
   .interviewer-avatar-icon {
@@ -741,6 +751,32 @@
 
   .topbar-progress-track {
     max-width: 150px;
+  }
+
+  /* Sticky footer End Interview action */
+  .interview-mobile-endbtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    width: 100%;
+    padding: 14px;
+    background-color: var(--danger-color);
+    color: #ffffff;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.18);
+  }
+
+  .interview-mobile-endbtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 }
 
@@ -1007,5 +1043,18 @@
 
 [data-theme="dark"] .coding-constraints-text {
   opacity: 0.85;
+}
+
+/* ============================================================
+   DESKTOP (>=1024px): fill the app shell below the fixed
+   header (NOT the full viewport — the navbar takes ~64px).
+   The grid keeps overflow:hidden; the two panels scroll
+   internally, the timeline + top bar stay pinned.
+   ============================================================ */
+@media (min-width: 1024px) {
+  .interview-layout {
+    height: 100%;
+    min-height: 0;
+  }
 }
 

@@ -198,7 +198,21 @@ public class ScoringService {
     }
 
     public String generateFinalFeedback(String interviewType, String qaContext) {
-        return aiProvider.generateFeedback(interviewType, qaContext);
+        try {
+            String feedback = aiProvider.generateFeedback(interviewType, qaContext);
+            if (feedback == null) throw new RuntimeException("AI Provider returned null");
+            return feedback;
+        } catch (Exception e) {
+            log.error("Failed to generate final feedback, using fallback: {}", e.getMessage());
+            return "{\n" +
+                    "  \"overallScore\": 70.0,\n" +
+                    "  \"summary\": \"The interview was completed, but detailed AI evaluation is currently unavailable due to system limits.\",\n" +
+                    "  \"strengths\": [\"Completed all questions\"],\n" +
+                    "  \"weaknesses\": [\"Detailed AI analysis unavailable\"],\n" +
+                    "  \"keyTakeaways\": [\"Good effort!\"],\n" +
+                    "  \"improvementPlan\": \"Review standard interview concepts.\"\n" +
+                    "}";
+        }
     }
 
     /**

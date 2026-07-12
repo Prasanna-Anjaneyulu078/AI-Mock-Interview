@@ -73,6 +73,14 @@
   box-sizing: border-box;
 }
 
+/* Full-height document so the app shell can own a definite 100vh height */
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
 *:focus-visible {
   outline: 2px solid var(--accent-color);
   outline-offset: 2px;
@@ -240,6 +248,61 @@ input, textarea, select {
 .app-shell, .protected-shell {
   min-height: 100vh;
   background: transparent;
+}
+
+/* ============================================================
+   DESKTOP LAYOUT (>= 1024px) — strict 100vw x 100vh SaaS shell
+   ============================================================
+   - Root shell owns the full viewport; body never scrolls.
+   - Navbar is a fixed-height header (flex: 0 0 auto).
+   - .app-main is the single scroll region that fills the rest.
+   - Each page root fills .app-main and scrolls internally.
+   Tablet (<1024px) and Mobile (<768px) keep their existing
+   responsive, body-scrolling behavior. */
+@media (min-width: 1024px) {
+  body {
+    overflow: hidden; /* prevent page-level scrolling on desktop */
+  }
+
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    min-width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .protected-shell {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Fixed header */
+  .navbar-container {
+    flex: 0 0 auto;
+  }
+
+  /* The only scrollable region on desktop */
+  .app-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Public auth route (LoginPage) is rendered directly under .app-shell,
+     without ProtectedRoute/Navbar — let it fill the shell. */
+  .app-shell > .login-page {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
 }
 
 /* Badges */

@@ -2,6 +2,10 @@ package com.mockinterview.service;
 
 import com.mockinterview.config.properties.Judge0Properties;
 import com.mockinterview.entity.TestCase;
+import com.mockinterview.exception.InvalidApiKeyException;
+import com.mockinterview.exception.Judge0ForbiddenException;
+import com.mockinterview.exception.Judge0QuotaExceededException;
+import com.mockinterview.exception.SubscriptionExpiredException;
 import com.mockinterview.util.ResilienceUtil;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.retry.backoff.ExponentialBackOffPolicy;
@@ -10,7 +14,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
@@ -22,6 +25,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Real Judge0 code-execution client (spec #10 — "Judge0 Reliability").
@@ -39,6 +44,7 @@ import java.util.Map;
  * compared against the case's {@code expectedOutput}; the aggregated result reports
  * {@code passedTests}/{@code totalTests} and an overall {@code passed} flag.
  */
+@Slf4j
 @Service
 public class Judge0Service {
 
@@ -96,6 +102,11 @@ public class Judge0Service {
 
         Map<Class<? extends Throwable>, Boolean> retryableExceptions = new HashMap<>();
         retryableExceptions.put(Exception.class, true);
+        // Deterministic auth/quota/subscription failures must never be retried.
+        retryableExceptions.put(InvalidApiKeyException.class, false);
+        retryableExceptions.put(SubscriptionExpiredException.class, false);
+        retryableExceptions.put(Judge0ForbiddenException.class, false);
+        retryableExceptions.put(Judge0QuotaExceededException.class, false);
         retryableExceptions.put(NonTransientJudge0Exception.class, false);
 
         SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(2, retryableExceptions, true);
@@ -112,11 +123,11 @@ public class Judge0Service {
      */
     public Judge0Result execute(String code, String language, List<TestCase> testCases) {
         if (baseUrl == null || baseUrl.isBlank()) {
-            System.err.println("⚠️ Judge0 not configured (app.ai.judge0.url) — falling back to AI code evaluation.");
+            log.warn("⚠️ Judge0 not configured (app.ai.judge0.url) — falling back to AI code evaluation.");
             return null;
         }
         if (circuitBreaker.isOpen()) {
-            System.err.println("⚠️ Judge0 circuit breaker OPEN — falling back to AI code evaluation.");
+            log.warn("⚠️ Judge0 circuit breaker OPEN — falling back to AI code evaluation.");
             return null;
         }
 
@@ -162,6 +173,13 @@ public class Judge0Service {
             }
             maxTime = Math.max(maxTime, run.time());
             maxMem = Math.max(maxMem, run.memory());
+
+            if (run.compileOutput() != null && !run.compileOutput().isBlank()) {
+                result.setCompileOutput(run.compileOutput());
+            }
+            if (run.statusDescription() != null && !run.statusDescription().isBlank()) {
+                result.setStatusDescription(run.statusDescription());
+            }
 
             boolean ok = run.accepted() && outputsMatch(run.stdout(), tc.getExpectedOutput());
             if (ok) {
@@ -215,17 +233,23 @@ public class Judge0Service {
         String token;
         try {
             token = retryTemplate.execute(context -> submit(code, langId, stdin));
+        } catch (com.mockinterview.exception.AIProviderException e) {
+            throw e;
         } catch (NonTransientJudge0Exception e) {
-            System.err.println("⚠️ Judge0 deterministic failure: " + e.getMessage());
-            return null;
+            log.error("⚠️ Judge0 deterministic failure: {}", e.getMessage());
+            throw new com.mockinterview.exception.AIProviderException("Judge0", 400, "BAD_REQUEST", "Execution failed: " + e.getMessage(), null);
         } catch (Exception e) {
-            System.err.println("⚠️ Judge0 submit failed: " + e.getMessage());
-            return null;
+            log.error("⚠️ Judge0 submit failed: {}", e.getMessage());
+            throw new com.mockinterview.exception.AIProviderException("Judge0", 503, "CONNECTION_FAILURE", "Judge0 connection failed: " + e.getMessage(), null);
         }
         if (token == null) {
-            return null;
+            throw new com.mockinterview.exception.AIProviderException("Judge0", 503, "CONNECTION_FAILURE", "Judge0 returned no token.", null);
         }
-        return poll(token);
+        Judge0Run run = poll(token);
+        if (run == null) {
+            throw new com.mockinterview.exception.AIProviderException("Judge0", 408, "TIMEOUT", "Judge0 execution timed out.", null);
+        }
+        return run;
     }
 
     private String submit(String code, int langId, String stdin) throws Exception {
@@ -238,6 +262,8 @@ public class Judge0Service {
         HttpHeaders headers = buildRapidApiHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
+        logJudge0Request(url, headers, code, langId, stdin);
+
         try {
             var resp = restTemplate.postForEntity(url, new HttpEntity<>(body, headers), Map.class);
             if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
@@ -247,13 +273,60 @@ public class Judge0Service {
             throw new IllegalStateException("Judge0 submit returned no token (status " + resp.getStatusCode() + ")");
         } catch (HttpStatusCodeException hse) {
             int httpCode = hse.getStatusCode().value();
-            if (httpCode >= 400 && httpCode < 500 && httpCode != HttpStatus.TOO_MANY_REQUESTS.value()) {
-                throw new NonTransientJudge0Exception("Non-retryable client error: " + httpCode, hse);
-            }
-            throw new RuntimeException("Judge0 Server Error: " + httpCode, hse);
+            String responseBody = hse.getResponseBodyAsString();
+            log.error("Judge0 HTTP {} from {} — body: {}", httpCode, url, responseBody);
+            throw classifyJudge0Error(httpCode, responseBody, hse);
         } catch (Exception e) {
             throw new RuntimeException("Judge0 Execution Failed", e);
         }
+    }
+
+    /** Logs request diagnostics so auth / URL / payload problems are visible without a live call. */
+    private void logJudge0Request(String url, HttpHeaders headers, String code, int langId, String stdin) {
+        boolean keyPresent = apiKey != null && !apiKey.isBlank();
+        String maskedKey = keyPresent && apiKey.length() >= 4
+                ? apiKey.substring(0, 4) + "…" : (keyPresent ? "***" : "<MISSING>");
+        boolean hostPresent = rapidApiHost != null && !rapidApiHost.isBlank();
+        if (!keyPresent || !hostPresent) {
+            log.warn("⚠️ Judge0 request may fail auth: X-RapidAPI-Key={}, X-RapidAPI-Host={}",
+                    keyPresent ? maskedKey : "<MISSING>", hostPresent ? rapidApiHost : "<MISSING>");
+        } else {
+            log.debug("Judge0 request → POST {} | key={} host={} | payload: source_code={}B language_id={} stdin={}B",
+                    url, maskedKey, rapidApiHost,
+                    code == null ? 0 : code.length(), langId, stdin == null ? 0 : stdin.length());
+        }
+    }
+
+    private RuntimeException classifyJudge0Error(int httpCode, String responseBody, Throwable cause) {
+        String lower = responseBody == null ? "" : responseBody.toLowerCase();
+        if (httpCode == 403 || httpCode == 401) {
+            if (lower.contains("invalid") || lower.contains("key") || lower.contains("unauthorized")) {
+                return new InvalidApiKeyException(responseBody);
+            }
+            if (lower.contains("subscri") || lower.contains("not subscribed")
+                    || lower.contains("inactive") || lower.contains("expired")) {
+                return new SubscriptionExpiredException(responseBody);
+            }
+            return new Judge0ForbiddenException(responseBody);
+        }
+        if (httpCode == 429) {
+            return new Judge0QuotaExceededException(responseBody);
+        }
+        if (httpCode == 408 || httpCode == 504) {
+            com.mockinterview.exception.AIProviderException ex = new com.mockinterview.exception.AIProviderException(
+                    "Judge0", httpCode, "TIMEOUT", "Judge0 connection timed out.", null);
+            if (cause != null) ex.initCause(cause);
+            return ex;
+        }
+        if (httpCode >= 400 && httpCode < 500) {
+            return new NonTransientJudge0Exception(
+                    "Non-retryable client error: " + httpCode + " | body=" + responseBody, cause);
+        }
+        // 5xx — surface as a 500 with a clear message (per agreed behavior).
+        com.mockinterview.exception.AIProviderException ex = new com.mockinterview.exception.AIProviderException(
+                "Judge0", 500, "JUDGE0_UNAVAILABLE", "Judge0 service unavailable.", null);
+        if (cause != null) ex.initCause(cause);
+        return ex;
     }
 
     /** Bounded poll loop — returns as soon as the run finishes, or null on timeout/failure. */
@@ -293,19 +366,34 @@ public class Judge0Service {
                 );
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
-                return null;
+                throw new com.mockinterview.exception.AIProviderException("Judge0", 503, "CONNECTION_FAILURE", "Judge0 poll interrupted.", null);
+            } catch (HttpStatusCodeException hse) {
+                int httpCode = hse.getStatusCode().value();
+                log.error("Judge0 poll HTTP {} for token {} — body: {}", httpCode, token, hse.getResponseBodyAsString());
+                throw classifyJudge0Error(httpCode, hse.getResponseBodyAsString(), hse);
             } catch (Exception e) {
-                System.err.println("⚠️ Judge0 poll error: " + e.getMessage());
-                return null;
+                log.warn("⚠️ Judge0 poll error: {}", e.getMessage());
+                try {
+                    Thread.sleep(POLL_INTERVAL_MS);
+                } catch (InterruptedException ie2) {
+                    Thread.currentThread().interrupt();
+                    throw new com.mockinterview.exception.AIProviderException("Judge0", 503, "CONNECTION_FAILURE", "Judge0 poll interrupted.", null);
+                }
             }
         }
-        System.err.println("⚠️ Judge0 poll timed out after " + MAX_POLLS + " attempts — falling back to AI evaluation.");
+        log.warn("Judge0 poll timed out after {} attempts for token {}", MAX_POLLS, token);
         return null;
     }
 
     private int mapLang(String language) {
-        if (language == null) return LANG_IDS.getOrDefault("python", 71);
-        return LANG_IDS.getOrDefault(language.toLowerCase(), 71);
+        if (language == null || language.isBlank()) {
+            throw new IllegalArgumentException("Language cannot be null or empty");
+        }
+        String lowerLang = language.toLowerCase();
+        if (!LANG_IDS.containsKey(lowerLang)) {
+            throw new IllegalArgumentException("Unsupported language: " + language);
+        }
+        return LANG_IDS.get(lowerLang);
     }
 
     /** Builds the common RapidAPI authentication headers. */

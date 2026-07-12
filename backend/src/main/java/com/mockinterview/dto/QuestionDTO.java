@@ -1,6 +1,7 @@
 package com.mockinterview.dto;
 
 import lombok.Data;
+import java.util.List;
 
 @Data
 public class QuestionDTO {
@@ -36,4 +37,15 @@ public class QuestionDTO {
 
     /** Expected time complexity hint, e.g. "O(n)". */
     private String timeComplexity;
+
+    /** Visible (non-hidden) test cases to show in the problem panel. */
+    private List<TestCaseSummaryDTO> testCases;
+
+    @Data
+    public static class TestCaseSummaryDTO {
+        private String name;
+        private String input;
+        private String expectedOutput;
+    }
 }
+

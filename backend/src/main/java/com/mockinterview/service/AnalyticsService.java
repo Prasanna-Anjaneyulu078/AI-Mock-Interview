@@ -71,7 +71,9 @@ public class AnalyticsService {
         for (com.mockinterview.entity.Interview inv : userInterviews) {
             if (inv.getFeedback() != null && !inv.getFeedback().isBlank()) {
                 try {
+                    @SuppressWarnings("unchecked")
                     Map<String, Object> fb = (Map<String, Object>) objectMapper.readValue(inv.getFeedback(), Map.class);
+                    @SuppressWarnings("unchecked")
                     Map<String, Object> cats = (Map<String, Object>) fb.get("categoryScores");
                     if (cats != null) {
                         comm += getScoreFromCat(cats, "communicationScore", "communicationSkills");
@@ -217,17 +219,22 @@ public class AnalyticsService {
             skillGrowthTrend.add(new AnalyticsProgressDTO.SkillGrowthPoint(
                     label, seenStrong.size(), seenWeak.size()));
 
-            String type = null, difficulty = null;
+            String type = null, difficulty = null, aiProviderUsed = null, providerError = null, interviewSource = null;
+            Boolean fallbackActivated = false;
             if (h.getInterview() != null) {
                 type = h.getInterview().getInterviewType();
                 difficulty = h.getInterview().getDifficulty();
+                fallbackActivated = h.getInterview().getFallbackActivated();
+                aiProviderUsed = h.getInterview().getAiProviderUsed();
+                providerError = h.getInterview().getProviderError();
+                interviewSource = h.getInterview().getInterviewSource();
                 if (difficulty != null) {
                     difficultyProgression.add(new AnalyticsProgressDTO.TrendPoint(label, (double) difficultyMap.getOrDefault(difficulty.toUpperCase(), 2)));
                 }
             }
             history.add(new AnalyticsProgressDTO.HistorySummary(
                     h.getInterview() != null ? h.getInterview().getId() : null,
-                    label, score, type, difficulty));
+                    label, score, type, difficulty, fallbackActivated, aiProviderUsed, providerError, interviewSource));
         }
 
         List<AnalyticsProgressDTO.TrendPoint> monthlyTrends = new ArrayList<>();

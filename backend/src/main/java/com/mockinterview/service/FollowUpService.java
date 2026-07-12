@@ -6,6 +6,9 @@ import com.mockinterview.entity.Interview;
 import com.mockinterview.entity.Question;
 import com.mockinterview.repository.QuestionRepository;
 import com.mockinterview.service.ai.AIProvider;
+import com.mockinterview.util.InterviewModes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -17,17 +20,22 @@ import java.util.stream.Collectors;
 @Service
 public class FollowUpService {
 
+    private static final Logger log = LoggerFactory.getLogger(FollowUpService.class);
+
     private final AIProvider aiProvider;
     private final QuestionRepository questionRepository;
     private final ObjectMapper objectMapper;
+    private final LocalCodingQuestionProvider localCodingQuestionProvider;
 
     private static final int MAX_FOLLOWUPS_PER_QUESTION = 2;
     private static final int MAX_FOLLOWUPS_PER_INTERVIEW = 20;
     private static final double DEDUP_THRESHOLD = 0.7;
 
-    public FollowUpService(AIProvider aiProvider, QuestionRepository questionRepository) {
+    public FollowUpService(AIProvider aiProvider, QuestionRepository questionRepository,
+                           LocalCodingQuestionProvider localCodingQuestionProvider) {
         this.aiProvider = aiProvider;
         this.questionRepository = questionRepository;
+        this.localCodingQuestionProvider = localCodingQuestionProvider;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -42,6 +50,16 @@ public class FollowUpService {
             return List.of();
         }
 
+        // ── STRICT CODING MODE: follow-ups MUST be coding problems ──
+        // A CODING interview never injects behavioral / HR / text follow-ups. If the
+        // interview mode is CODING we bypass the generic AI follow-up (which returns
+        // non-coding questions) and generate a coding challenge instead.
+        boolean codingMode = interview.getInterviewMode() != null
+                && InterviewModes.CODING.equals(InterviewModes.normalize(interview.getInterviewMode()));
+        if (codingMode) {
+            return generateCodingFollowUps(interview, answered, alreadyGenerated);
+        }
+
         String response;
         try {
             response = aiProvider.generateFollowUp(answered.getQuestionText(), answerText, role, adaptedLevelWord, resumeContext);
@@ -49,7 +67,7 @@ public class FollowUpService {
             System.err.println("⚠️ AI failed to generate follow-ups: " + e.getMessage());
             return List.of();
         }
-        
+
         response = extractJson(response);
         List<Map<String, Object>> parsed = parseArray(response);
         if (parsed == null) {
@@ -83,6 +101,41 @@ public class FollowUpService {
             questionRepository.save(f);
             result.add(f);
             seen.add(TextSimilarity.normalize(text));
+        }
+        return result;
+    }
+
+    /**
+     * Builds adaptive coding follow-ups for a CODING interview. Each follow-up is a real
+     * coding challenge (never MCQ / behavioral / HR) sourced from
+     * {@link LocalCodingQuestionProvider}, so the interview stays pure-coding even when the
+     * candidate's answer scored low and a probe is warranted.
+     */
+    private List<Question> generateCodingFollowUps(Interview interview, Question answered, int alreadyGenerated) {
+        java.util.Set<String> seen = interview.getQuestions().stream()
+                .map(Question::getQuestionText)
+                .filter(Objects::nonNull)
+                .map(TextSimilarity::normalize)
+                .collect(Collectors.toSet());
+
+        String difficulty = answered.getDifficulty() != null ? answered.getDifficulty() : interview.getDifficulty();
+        String lang = interview.getCodingLanguage();
+
+        List<Question> result = new ArrayList<>();
+        int added = 0;
+        while (added < MAX_FOLLOWUPS_PER_QUESTION
+                && (alreadyGenerated + added) < MAX_FOLLOWUPS_PER_INTERVIEW) {
+            Question cq = localCodingQuestionProvider.buildQuestion(interview, difficulty, lang, seen);
+            if (cq == null) break; // pool exhausted
+            cq.setIsFollowUp(true);
+            cq.setParentQuestionId(answered.getId());
+            cq.setDifficulty(difficulty);
+            cq.setGeneratedByAI(true);
+            questionRepository.save(cq);
+            seen.add(TextSimilarity.normalize(cq.getQuestionText()));
+            result.add(cq);
+            added++;
+            log.info("[QUESTION_GENERATED] CODING (follow-up) title='{}'", cq.getTitle());
         }
         return result;
     }

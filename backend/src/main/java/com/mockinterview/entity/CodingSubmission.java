@@ -22,12 +22,14 @@ public class CodingSubmission {
     @JoinColumn(name = "interview_id", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Interview interview;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "coding_question_id", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private CodingQuestion codingQuestion;
 
     @Column(columnDefinition = "TEXT")

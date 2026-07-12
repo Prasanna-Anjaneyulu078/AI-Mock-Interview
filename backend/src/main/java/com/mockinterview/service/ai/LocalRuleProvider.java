@@ -1,10 +1,14 @@
 package com.mockinterview.service.ai;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 
 @Service
 public class LocalRuleProvider implements AIProvider {
+
+    private static final Logger log = LoggerFactory.getLogger(LocalRuleProvider.class);
 
     @Override
     public String generate(String prompt) {
@@ -21,8 +25,15 @@ public class LocalRuleProvider implements AIProvider {
     }
 
     @Override
-    public String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) {
-        // Fallback static questions
+    public String generateQuestions(String interviewMode, String role, String resumeContext, String guidance, String levelDifficulty, int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) {
+        // CODING mode fallback: MUST emit coding problems only — never MCQ/behavioral.
+        boolean codingMode = "CODING".equals(interviewMode) || "CODING_INTERVIEW".equals(interviewMode);
+        if (codingMode) {
+            log.info("[FALLBACK_CODING_PROVIDER_USED] Returning empty JSON to trigger fallback mode=CODING role={}", role);
+            return "[]";
+        }
+
+        // Fallback static questions (non-coding modes)
         StringBuilder sb = new StringBuilder();
         sb.append("[\n");
         for (int i = 0; i < count; i++) {

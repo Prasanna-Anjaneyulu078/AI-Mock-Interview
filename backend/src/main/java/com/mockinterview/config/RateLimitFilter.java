@@ -2,7 +2,6 @@ package com.mockinterview.config;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Bucket4j;
 import io.github.bucket4j.Refill;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -32,7 +31,7 @@ public class RateLimitFilter implements Filter {
         // 50 requests per minute
         Refill refill = Refill.intervally(50, Duration.ofMinutes(1));
         Bandwidth limit = Bandwidth.classic(50, refill);
-        return Bucket4j.builder().addLimit(limit).build();
+        return Bucket.builder().addLimit(limit).build();
     }
 
     @Override

@@ -21,9 +21,9 @@
         <jjwt.version>0.12.5</jjwt.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <!-- Override Spring Boot parent's managed Lombok; 1.18.30 does not support JDK 25. -->
-        <lombok.version>1.18.46</lombok.version>
+        <lombok.version>1.18.32</lombok.version>
         <!-- `mvn spring-boot:run` is a local-dev tool: default it to the dev profile
-             (in-memory H2 + dev-only JWT secret) so it boots with no manual env.
+             (PostgreSQL + dev-only JWT secret) so it boots with no manual env.
              Production runs the packaged jar (java -jar), which still requires real
              JWT_SECRET / AI keys from the environment. Override with
              `mvn spring-boot:run -Dspring-boot.run.profiles=prod` if needed. -->
@@ -139,7 +139,7 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
 
         <!-- Rate Limiting -->

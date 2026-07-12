@@ -30,10 +30,11 @@ const startInterview = async (role, resumeId, interviewLevel, voiceSettings) => 
     voiceSpeed: voiceSettings?.voiceSpeed,
     voiceId: voiceSettings?.voiceId,
     style: voiceSettings?.style,
-    // FIX: forward interviewMode and targetQuestionCount
-    interviewMode: voiceSettings?.interviewMode,
-    codingLanguage: voiceSettings?.codingLanguage,
-    selectedInterests: voiceSettings?.selectedInterests,
+    // Canonical mode (e.g. CODING, TECHNICAL, BEHAVIORAL, RESUME_BASED, SYSTEM_DESIGN).
+    // Sent as both `mode` and `interviewMode` so legacy and new servers accept it.
+    mode: voiceSettings?.mode,
+    interviewMode: voiceSettings?.interviewMode || voiceSettings?.mode,
+    // Programming language is now chosen inside the Coding IDE, not at setup time.
     targetQuestionCount: voiceSettings?.targetQuestionCount,
   });
   return response.data.data;

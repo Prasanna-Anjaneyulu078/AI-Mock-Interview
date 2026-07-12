@@ -19,6 +19,8 @@ import {
   BsBarChartFill,
   BsShieldCheck,
   BsPeopleFill,
+  BsEye,
+  BsEyeSlash,
 } from 'react-icons/bs';
 import toast from 'react-hot-toast';
 import './index.css';
@@ -29,6 +31,7 @@ function LoginPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { login } = useContext(AuthContext);
@@ -66,7 +69,7 @@ function LoginPage() {
       <nav className="login-nav">
         <div className="login-nav-brand">
           <BsCameraVideo className="login-nav-icon" />
-          <span className="login-nav-name">AI Mock Interview</span>
+          <span className="login-nav-name">InterviewIQ AI</span>
         </div>
       </nav>
 
@@ -150,18 +153,27 @@ function LoginPage() {
               />
             </div>
 
-            <div className="login-field">
+            <div className="login-field password-field">
               <label htmlFor="password" className="login-label">Password</label>
-              <input
-                id="password"
-                type="password"
-                className="login-input"
-                placeholder="Min. 6 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
+              <div className="password-input-wrapper">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  className="login-input"
+                  placeholder="Min. 6 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <BsEyeSlash /> : <BsEye />}
+                </button>
+              </div>
             </div>
 
             <button

@@ -1,60 +1,64 @@
-// ============================================
-// roles.js - Available Interview Roles
-// ============================================
-// Icon field stores the react-icons component name
-// which is mapped to actual components in the page.
-// Reference: React Icons - reference-react.md
-// ============================================
+import { FaJava, FaPython, FaReact } from 'react-icons/fa';
+import { BsLightningFill, BsWindowStack, BsDiagram3, BsCloudFill, BsGraphUp, BsRobot } from 'react-icons/bs';
 
-const INTERVIEW_ROLES = [
+export const INTERVIEW_ROLES = [
   {
-    id: 'frontend-developer',
-    title: 'Frontend Developer',
-    iconName: 'BsDisplay',
-    description: 'React, JavaScript, HTML, CSS, and UI/UX skills',
+    id: 'JAVA_BACKEND_DEVELOPER',
+    title: 'Java Backend Developer',
+    icon: FaJava,
+    description: 'Core Java, Spring Boot, REST APIs, Microservices',
+    topics: ['Core Java', 'OOP', 'Collections', 'Streams', 'JVM', 'Multithreading', 'Spring Boot', 'REST APIs', 'Hibernate/JPA', 'Security', 'Microservices', 'SQL']
   },
   {
-    id: 'backend-developer',
-    title: 'Backend Developer',
-    iconName: 'BsServer',
-    description: 'Node.js, Express, APIs, databases, and server-side logic',
-  },
-  {
-    id: 'full-stack-developer',
-    title: 'Full Stack Developer',
-    iconName: 'BsLightningFill',
-    description: 'End-to-end web development with frontend and backend',
-  },
-  {
-    id: 'data-analyst',
-    title: 'Data Analyst',
-    iconName: 'BsGraphUp',
-    description: 'SQL, Python, data visualization, and analytics',
-  },
-  {
-    id: 'devops-engineer',
-    title: 'DevOps Engineer',
-    iconName: 'BsCloudFill',
-    description: 'CI/CD, Docker, cloud platforms, and infrastructure',
-  },
-  {
-    id: 'python-developer',
+    id: 'PYTHON_DEVELOPER',
     title: 'Python Developer',
-    iconName: 'FaPython',
-    description: 'Python programming, frameworks, and automation',
+    icon: FaPython,
+    description: 'Python fundamentals, Flask, Django, FastAPI',
+    topics: ['Python Fundamentals', 'OOP', 'Decorators', 'Generators', 'Iterators', 'Context Managers', 'Asyncio', 'Flask', 'Django', 'FastAPI', 'SQLAlchemy', 'Testing', 'Performance Optimization']
   },
   {
-    id: 'react-developer',
-    title: 'React Developer',
-    iconName: 'FaReact',
-    description: 'React.js, hooks, state management, and component design',
+    id: 'FRONTEND_DEVELOPER',
+    title: 'Frontend Developer',
+    icon: FaReact,
+    description: 'HTML, CSS, JavaScript, TypeScript, React',
+    topics: ['HTML', 'CSS', 'JavaScript', 'TypeScript', 'React', 'Hooks', 'State Management', 'Routing', 'API Integration', 'Performance Optimization']
+  },
+
+  {
+    id: 'CS_FUNDAMENTALS',
+    title: 'CS Fundamentals',
+    icon: BsWindowStack,
+    description: 'OOP, DBMS, SQL, OS, Computer Networks',
+    topics: ['OOP', 'DBMS', 'SQL', 'Transactions', 'Indexing', 'Normalization', 'Operating Systems', 'Memory Management', 'Scheduling', 'Deadlocks', 'Computer Networks', 'TCP/IP', 'DNS', 'HTTP']
   },
   {
-    id: 'java-developer',
-    title: 'Java Developer',
-    iconName: 'FaJava',
-    description: 'Java, Spring Boot, OOP, and enterprise applications',
+    id: 'SYSTEM_DESIGN',
+    title: 'System Design',
+    icon: BsDiagram3,
+    description: 'LLD, HLD, Database Design, Scalability',
+    topics: ['Database Design', 'ER Diagrams', 'Schema Design', 'SQL Optimization', 'LLD', 'SOLID Principles', 'Design Patterns', 'UML', 'HLD', 'Scalability', 'Load Balancing', 'Caching', 'Distributed Systems', 'Microservices', 'API Design']
   },
+  {
+    id: 'DEVOPS_ENGINEER',
+    title: 'DevOps Engineer',
+    icon: BsCloudFill,
+    description: 'Linux, Docker, Kubernetes, CI/CD, AWS',
+    topics: ['Linux', 'Docker', 'Kubernetes', 'CI/CD', 'AWS', 'Terraform', 'Monitoring']
+  },
+  {
+    id: 'DATA_ANALYST',
+    title: 'Data Analyst',
+    icon: BsGraphUp,
+    description: 'SQL, Excel, Power BI, Statistics, Python',
+    topics: ['SQL', 'Excel', 'Power BI', 'Statistics', 'Python', 'Data Visualization']
+  },
+  {
+    id: 'AI_ML_ENGINEER',
+    title: 'AI / ML Engineer',
+    icon: BsRobot,
+    description: 'Machine Learning, Deep Learning, NLP, Computer Vision',
+    topics: ['Machine Learning', 'Deep Learning', 'NLP', 'Computer Vision', 'TensorFlow', 'PyTorch', 'MLOps', 'LLMs']
+  }
 ];
 
 export default INTERVIEW_ROLES;

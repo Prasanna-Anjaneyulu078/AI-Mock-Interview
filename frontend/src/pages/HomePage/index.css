@@ -202,3 +202,12 @@
     font-size: 28px;
   }
 }
+
+/* DESKTOP (>=1024px): fill the app shell, scroll internally */
+@media (min-width: 1024px) {
+  .home-page {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}

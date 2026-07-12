@@ -78,9 +78,13 @@ public class Question {
     @Column(columnDefinition = "TEXT")
     private String constraints;
 
-    /** Starter code / template the candidate should fill in. */
+    /** Starter code / template (method signature only — NO implementation body). */
     @Column(columnDefinition = "TEXT")
     private String starterCode;
+
+    /** Full reference solution — stored server-side, NEVER sent to frontend. */
+    @Column(columnDefinition = "TEXT")
+    private String solutionCode;
 
     /** Comma-separated tags, e.g. "Array, Hash Map, Two Pointers". */
     private String tags;

@@ -73,6 +73,8 @@ public class Answer {
     @Column(columnDefinition = "TEXT")
     private String codeExecutionResult; // Judge0 summary (passedTests/totalTests) for code answers
 
+    private String evaluationStatus; // e.g. COMPLETED, FAILED
+
     @CreationTimestamp
     private LocalDateTime answeredAt;
 }

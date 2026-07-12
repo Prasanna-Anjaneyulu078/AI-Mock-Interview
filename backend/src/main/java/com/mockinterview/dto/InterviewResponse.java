@@ -21,6 +21,7 @@ public class InterviewResponse {
 
     private String status;
     private Double overallScore;
+    private String interviewMode;
     private String interviewType;
     private String role;       // alias for interviewType — FeedbackPage reads `role`
     private String adaptedDifficulty; // #5 adaptive engine: difficulty tuned mid-interview

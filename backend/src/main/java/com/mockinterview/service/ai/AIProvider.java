@@ -20,7 +20,7 @@ public interface AIProvider {
     /**
      * Generates a batch of questions based on counts for different categories.
      */
-    String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty,
+    String generateQuestions(String interviewMode, String role, String resumeContext, String guidance, String levelDifficulty,
                              int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList);
 
     /** Role/student-aware opening question. */

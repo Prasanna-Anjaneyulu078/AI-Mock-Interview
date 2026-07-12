@@ -5,10 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mockinterview.dto.*;
 import com.mockinterview.entity.*;
 import com.mockinterview.exception.ResourceNotFoundException;
+import com.mockinterview.exception.AIProviderException;
 import com.mockinterview.mapper.InterviewMapper;
 import com.mockinterview.repository.*;
-import com.mockinterview.service.ai.AIProviderRouter;
-import com.mockinterview.service.TextSimilarity;
+import com.mockinterview.util.InterviewModes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,7 +38,6 @@ public class InterviewService {
     private final QuestionRepository questionRepository;
     private final AnswerRepository answerRepository;
     private final CodeSubmissionRepository codeSubmissionRepository;
-    private final CodingSubmissionRepository codingSubmissionRepository;
     private final InterviewHistoryRepository historyRepository;
     private final ResumeRepository resumeRepository;
     private final ResumeService resumeService;
@@ -67,7 +66,6 @@ public class InterviewService {
                             PersonalizedQuestionService personalizedQuestionService,
                             FollowUpService followUpService,
                             CodeSubmissionRepository codeSubmissionRepository,
-                            CodingSubmissionRepository codingSubmissionRepository,
                             Judge0Service judge0Service,
                             InterviewRecordingRepository interviewRecordingRepository) {
         this.interviewRepository = interviewRepository;
@@ -86,7 +84,6 @@ public class InterviewService {
         this.personalizedQuestionService = personalizedQuestionService;
         this.followUpService = followUpService;
         this.codeSubmissionRepository = codeSubmissionRepository;
-        this.codingSubmissionRepository = codingSubmissionRepository;
         this.judge0Service = judge0Service;
         this.interviewRecordingRepository = interviewRecordingRepository;
         this.objectMapper = new ObjectMapper();
@@ -96,7 +93,7 @@ public class InterviewService {
     // START INTERVIEW
     // ─────────────────────────────────────────────────────────
 
-    @Transactional
+    @Transactional(noRollbackFor = AIProviderException.class)
     public InterviewResponse startInterview(Long userId, InterviewRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -104,6 +101,18 @@ public class InterviewService {
         Resume resume = null;
         if (request.getResumeId() != null) {
             resume = resumeRepository.findById(request.getResumeId()).orElse(null);
+        }
+
+        // Resolve + normalize the interview mode (accept both `mode` and legacy `interviewMode`).
+        String rawMode = request.getMode() != null ? request.getMode() : request.getInterviewMode();
+        String mode = InterviewModes.normalize(rawMode);
+
+        log.info("[ROLE_SELECTED] {} mode={}", request.getRole(), mode);
+
+        // Server-side enforcement: a Resume-Based interview MUST have a resume.
+        if (InterviewModes.requiresResume(mode) && resume == null) {
+            throw new com.mockinterview.exception.ValidationException(
+                    "Resume upload is required for Resume-Based Interview.");
         }
 
         String level = request.getInterviewLevel() != null ? request.getInterviewLevel().toUpperCase() : "STANDARD";
@@ -136,7 +145,7 @@ public class InterviewService {
         Interview interview = Interview.builder()
                 .user(user)
                 .interviewType(request.getRole())
-                .interviewMode(request.getInterviewMode() != null ? request.getInterviewMode() : "RESUME")
+                .interviewMode(mode)
                 .codingLanguage(request.getCodingLanguage())
                 .selectedInterests(request.getSelectedInterests())
                 .difficulty(difficultyName)
@@ -158,20 +167,32 @@ public class InterviewService {
         interview = interviewRepository.save(interview);
 
         // ── Question 1: dynamic, role- and resume-aware intro ─
-        String introText = personalizedQuestionService.generateIntroQuestion(request.getRole(), structuredSkills);
-        Question introQ = Question.builder()
-                .interview(interview)
-                .questionText(introText)
-                .type("behavioral")
-                .isCodeQuestion(false)
-                .generatedByAI(true)
-                .build();
-        questionRepository.save(introQ);
+        boolean skipIntro = InterviewModes.CODING.equals(mode)
+                || InterviewModes.TECHNICAL.equals(mode);
+        
+        int batchSize = targetCount;
+        
+        if (!skipIntro) {
+            String introText = personalizedQuestionService.generateIntroQuestion(request.getRole(), structuredSkills);
+            Question introQ = Question.builder()
+                    .interview(interview)
+                    .questionText(introText)
+                    .type("behavioral")
+                    .isCodeQuestion(false)
+                    .generatedByAI(true)
+                    .build();
+            questionRepository.save(introQ);
+            batchSize = targetCount - 1; // Minus the intro already saved
+        }
 
         // ── Questions 2–N: AI-generated, resume-personalized (Initial Batch) ──
         // Generate all questions upfront based on difficulty (not limited by initial small batch)
-        int batchSize = targetCount - 1; // Minus the intro already saved
-        generateBatchForInterview(interview, request.getRole(), resumeText, structuredSkills, batchSize, level, userId, request.getResumeId());
+        AIProviderException capturedException = null;
+        try {
+            generateBatchForInterview(interview, request.getRole(), resumeText, structuredSkills, batchSize, level, userId, request.getResumeId());
+        } catch (AIProviderException e) {
+            capturedException = e;
+        }
 
         // ── Assign stable sequence ordering (enables adaptive follow-up insertion) ──
         assignSequences(interview.getId());
@@ -208,6 +229,11 @@ public class InterviewService {
             }
         }
 
+        if (capturedException != null) {
+            capturedException.setFallbackData(response);
+            throw capturedException;
+        }
+
         return response;
     }
 
@@ -219,74 +245,76 @@ public class InterviewService {
     
     private void generateBatchForInterview(Interview interview, String role, String resumeText, String structuredSkills, int batchSize, String level, Long userId, Long resumeId) {
         if (batchSize <= 0) return;
-        
-        String mode = interview.getInterviewMode() != null ? interview.getInterviewMode() : "RESUME";
-        String lvl = level != null ? level.toUpperCase() : "STANDARD";
+
+        log.info("[QUESTION_GENERATION_ROLE] {} mode={} count={}", role, interview.getInterviewMode(), batchSize);
+
+        String mode = InterviewModes.normalize(interview.getInterviewMode());
         
         int hr = 0, tech = 0, proj = 0, code = 0, interest = 0;
         
-        if (mode.equals("CODING_INTERVIEW")) {
-            // Coding Interview Mode Optimization
-            switch (lvl) {
-                case "STARTER":
-                    code = 5; tech = 2; break; // 2 Conceptual -> tech
-                case "BEGINNER":
-                    code = 8; tech = 2; break;
-                case "STANDARD":
-                    code = 12; tech = 3; break;
-                case "INTERMEDIATE":
-                    code = 18; tech = 2; break; // 2 System Design -> tech
-                case "ADVANCED":
-                    code = 20; tech = 5; break;
-                default: // Fallback
-                    code = 12; tech = 3; break;
-            }
-        } else if (mode.equals("HR") || mode.equals("INTEREST_BASED") || mode.equals("HYBRID")) {
-            // Preserve logic for other modes or scale based on batchSize
-            if (mode.equals("HR")) {
-                hr = batchSize;
-            } else if (mode.equals("INTEREST_BASED")) {
+        // strict interview mode generation
+        switch (mode) {
+            case "CODING":
+            case "CODING_INTERVIEW": // legacy alias
+                code = batchSize;
+                break;
+            case "TECHNICAL":
+                tech = batchSize;
+                break;
+            case "BEHAVIORAL":
+            case "HR": // legacy alias
+                hr = batchSize; // Using HR count to map to behavioral category in prompt
+                break;
+            case "RESUME_BASED":
+            case "RESUME": // legacy alias
+                proj = batchSize; // Using Project count for Resume based
+                break;
+            case "PROJECT":
+                proj = batchSize;
+                break;
+
+            case "INTEREST_BASED":
                 interest = batchSize;
-            } else if (mode.equals("HYBRID")) {
-                proj = (int) Math.round(batchSize * 0.40);
-                interest = (int) Math.round(batchSize * 0.30);
-                tech = (int) Math.round(batchSize * 0.20);
-                hr = batchSize - proj - interest - tech;
-                if (hr < 0) hr = 0;
-            }
-        } else {
-            // Normal Interviews (Technical/Mock/Resume)
-            switch (lvl) {
-                case "STARTER":
-                    hr = 3; tech = 3; code = 1; break;
-                case "BEGINNER":
-                    hr = 3; tech = 4; code = 3; break;
-                case "STANDARD":
-                    hr = 4; tech = 6; code = 5; break;
-                case "INTERMEDIATE":
-                    hr = 4; tech = 8; code = 8; break;
-                case "ADVANCED":
-                    hr = 5; tech = 10; code = 10; break;
-                default:
-                    hr = 4; tech = 6; code = 5; break;
-            }
+                break;
+            case "HYBRID":
+                // Hybrid keeps a rich mix across every category.
+                int hSlice = Math.max(1, batchSize / 4);
+                hr = hSlice;
+                tech = hSlice;
+                proj = hSlice;
+                code = hSlice;
+                interest = Math.max(0, batchSize - (hr + tech + proj + code));
+                break;
+            case "MIXED":
+            default:
+                // 20% distribution
+                int slice = batchSize / 5;
+                if (slice == 0) slice = 1;
+                hr = slice;
+                tech = slice;
+                proj = slice;
+                code = slice;
+                interest = Math.max(0, batchSize - (hr + tech + proj + code));
+                break;
         }
         
         // Update target count based on actual generation
         int total = hr + tech + proj + code + interest;
-        interview.setTargetQuestionCount(total);
-        interviewRepository.save(interview);
+        if (interview.getTargetQuestionCount() < total) {
+            interview.setTargetQuestionCount(total);
+            interviewRepository.save(interview);
+        }
         
         personalizedQuestionService.generateAndSaveAIQuestions(
                 interview, role, resumeText, structuredSkills,
-                hr, tech, proj, code, interest, level, userId, resumeId);
+                hr, tech, proj, code, interest, level, userId, resumeId, mode);
     }
 
     // ─────────────────────────────────────────────────────────
     // SUBMIT ANSWER
     // ─────────────────────────────────────────────────────────
 
-    @Transactional
+    @Transactional(noRollbackFor = AIProviderException.class)
     public AnswerResponse submitAnswer(Long userId, Long interviewId, AnswerRequest request) {
         Interview interview = interviewRepository.findByIdAndUserId(interviewId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Interview not found"));
@@ -322,11 +350,11 @@ public class InterviewService {
                 .responseTimeSeconds(request.getResponseTimeSeconds())
                 .difficultyLevel(question.getDifficulty())
                 .build();
+        answer.setEvaluationStatus("PENDING");
         answerRepository.save(answer);
+        log.info("[ANSWER_SAVED] ID {} for Question {} in Interview {}", answer.getId(), question.getId(), interviewId);
 
-        // 2b) Real code execution via Judge0 (spec #10) — runs the candidate's code against
-        // this question's visible + hidden test cases and persists the metrics. Falls back
-        // transparently to the AI evaluation below when Judge0 is unavailable.
+        // 2b) Real code execution via Judge0
         Judge0Result judge0Result = null;
         if (request.getCode() != null && !request.getCode().isBlank()) {
             judge0Result = runJudge0(interview, question, answerText, request.getLanguage());
@@ -335,47 +363,72 @@ public class InterviewService {
                         "passed %d/%d test cases (%s)",
                         judge0Result.getPassedTests(), judge0Result.getTotalTests(),
                         judge0Result.isPassed() ? "PASS" : "FAIL"));
+                answerRepository.save(answer);
             }
         }
 
         // 3) Evaluate Answer via Voice or Text Scoring Service
-        if (request.getAudioDurationSeconds() != null && request.getAudioDurationSeconds() > 0) {
-            voiceEvaluationService.evaluateVoiceAnswer(answer, question, request);
-        } else {
-            scoringService.evaluateAnswer(answer, question, request, judge0Result);
-        }
-        answerRepository.save(answer);
 
-        // 4) Adaptive engine (#5): update running score + adapted difficulty
-        updateAdaptiveState(interview, answer);
-
-        // 5) Dynamic follow-up questions (#4): analyse the answer and probe deeper.
-        //    Persisted as follow-ups inserted immediately after this question.
-        int alreadyGenerated = countFollowUps(interview.getId());
         String adaptedWord = interview.getAdaptedDifficulty() != null
                 ? interview.getAdaptedDifficulty() : interview.getDifficulty();
-        String followUpLevelWord = levelWordFor(adaptedWord);
-        String resumeContext = buildFollowUpResumeContext(interview);
-        
         List<Question> newFollowUps = new java.util.ArrayList<>();
-        // Only generate follow-ups if the score is below 70
-        if (answer.getEvaluationScore() != null && answer.getEvaluationScore() < 70.0) {
-            newFollowUps = followUpService.generateFollowUps(
-                    interview, question, answer, interview.getInterviewType(),
-                    followUpLevelWord, resumeContext, alreadyGenerated);
-            insertFollowUpsAfter(question, newFollowUps);
+        AIProviderException capturedException = null;
+        try {
+            log.info("[AI_EVALUATION_STARTED] for Answer {}", answer.getId());
+            if (request.getAudioDurationSeconds() != null && request.getAudioDurationSeconds() > 0) {
+                voiceEvaluationService.evaluateVoiceAnswer(answer, question, request);
+            } else {
+                scoringService.evaluateAnswer(answer, question, request, judge0Result);
+            }
+            answer.setEvaluationStatus("COMPLETED");
+            answerRepository.save(answer);
+
+            // 4) Adaptive engine (#5): update running score + adapted difficulty
+            updateAdaptiveState(interview, answer);
+
+            // 5) Dynamic follow-up questions
+            int alreadyGenerated = countFollowUps(interview.getId());
+            String followUpLevelWord = levelWordFor(adaptedWord);
+            String resumeContext = buildFollowUpResumeContext(interview);
+            
+            if (answer.getEvaluationScore() != null && answer.getEvaluationScore() < 70.0) {
+                newFollowUps = followUpService.generateFollowUps(
+                        interview, question, answer, interview.getInterviewType(),
+                        followUpLevelWord, resumeContext, alreadyGenerated);
+                insertFollowUpsAfter(question, newFollowUps);
+            }
+        } catch (AIProviderException e) {
+            log.warn("[AI_EVALUATION_FAILED] AI Provider failed during evaluation for answer {}: {}", answer.getId(), e.getMessage());
+            answer.setEvaluationStatus("FAILED");
+            answerRepository.save(answer);
+            capturedException = e;
+        } catch (Exception e) {
+            log.error("[AI_EVALUATION_FAILED] Unexpected error evaluating answer {}", answer.getId(), e);
+            answer.setEvaluationStatus("FAILED");
+            answerRepository.save(answer);
         }
+
+
 
         // 6) Determine the next question (a follow-up if one was just generated, else advance)
         List<Question> updated = getOrderedQuestions(interview.getId());
         int totalNow = updated.size();
         int nextSeq = answeredSeq + 1;
         int target = interview.getTargetQuestionCount() != null ? interview.getTargetQuestionCount() : 15;
-        boolean isComplete = answeredSeq >= target;
 
         AnswerResponse response = new AnswerResponse();
         if (judge0Result != null) {
-            response.setEvaluation(judge0Result); // matches the required stdout/stderr/passed/... shape
+            java.util.Map<String, Object> evalMap = new java.util.HashMap<>();
+            evalMap.put("isCorrect", answer.getEvaluationScore() != null && answer.getEvaluationScore() >= 70);
+            evalMap.put("score", answer.getEvaluationScore());
+            evalMap.put("feedback", answer.getFeedback());
+            evalMap.put("suggestions", answer.getImprovementSuggestions());
+            evalMap.put("passed", judge0Result.isPassed());
+            evalMap.put("passedTests", judge0Result.getPassedTests());
+            evalMap.put("totalTests", judge0Result.getTotalTests());
+            evalMap.put("executionTime", judge0Result.getExecutionTime());
+            evalMap.put("memoryUsage", judge0Result.getMemoryUsage());
+            response.setEvaluation(evalMap);
         }
 
         // TERMINATION CHECK: Stop if we've answered exactly (or more than) the target count.
@@ -398,7 +451,11 @@ public class InterviewService {
             int remaining = target - answeredSeq; // How many answers are left to reach the target
             int batchSize = Math.min(3, remaining); // Generate up to 3 at a time
             
-            generateBatchForInterview(interview, interview.getInterviewType(), interview.getResumeText(), null, batchSize, adaptedWord, userId, interview.getResumeId());
+            try {
+                generateBatchForInterview(interview, interview.getInterviewType(), interview.getResumeText(), null, batchSize, adaptedWord, userId, interview.getResumeId());
+            } catch (AIProviderException e) {
+                capturedException = e;
+            }
             
             updated = getOrderedQuestions(interview.getId());
             totalNow = updated.size();
@@ -409,7 +466,7 @@ public class InterviewService {
                 java.util.Set<String> seen = updated.stream()
                         .map(q -> com.mockinterview.service.TextSimilarity.normalize(q.getQuestionText()))
                         .collect(Collectors.toSet());
-                personalizedQuestionService.forceSaveFallbackQuestions(interview, needed, seen);
+                personalizedQuestionService.forceSaveFallbackQuestions(interview, needed, seen, interview.getInterviewMode());
                 updated = getOrderedQuestions(interview.getId());
                 totalNow = updated.size();
             }
@@ -461,6 +518,13 @@ public class InterviewService {
         interview.setCurrentQuestion(nextSeq);
         interview.setTotalQuestions(totalNow);
         interviewRepository.save(interview);
+        String nextMode = interview.getInterviewMode() != null ? interview.getInterviewMode() : "UNKNOWN";
+        log.info("[NEXT_QUESTION_GENERATED] mode={} Interview {} progressed to question {}", nextMode, interviewId, nextSeq);
+
+        if (capturedException != null) {
+            capturedException.setFallbackData(response);
+            throw capturedException;
+        }
 
         return response;
     }
@@ -471,7 +535,7 @@ public class InterviewService {
     // END INTERVIEW — Generate Feedback
     // ─────────────────────────────────────────────────────────
 
-    @Transactional
+    @Transactional(noRollbackFor = AIProviderException.class)
     public FeedbackResponse endInterview(Long userId, Long interviewId) {
         Interview interview = interviewRepository.findByIdAndUserId(interviewId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Interview not found"));
@@ -489,8 +553,14 @@ public class InterviewService {
         String qaContext = buildQAContext(questions);
 
         // ── 1) Holistic AI evaluation (may be null on failure; handled gracefully) ──
-        String aiResponse = scoringService.generateFinalFeedback(interview.getInterviewType(), qaContext);
-        Map<String, Object> aiMap = parseAIJson(interviewId, aiResponse);
+        Map<String, Object> aiMap = null;
+        try {
+            String aiResponse = scoringService.generateFinalFeedback(interview.getInterviewType(), qaContext);
+            aiMap = parseAIJson(interviewId, aiResponse);
+        } catch (AIProviderException e) {
+            log.error("Feedback generation failed for interview {}: {}", interviewId, e.getMessage());
+            // Fallback handled gracefully via null aiMap
+        }
 
         // ── 2) Aggregate the per-answer structured scores (the real signal) ──
         AnswerAggregates agg = computeAnswerAggregates(questions);
@@ -547,7 +617,7 @@ public class InterviewService {
         return speechToTextService.transcribeAudioWithMetadata(audio);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = AIProviderException.class)
     public AnswerResponse submitVoiceAnswer(Long userId, Long interviewId, org.springframework.web.multipart.MultipartFile audio) {
         java.util.Map<String, Object> transcriptionData = transcribeAudio(audio);
         String transcribedText = (String) transcriptionData.getOrDefault("text", "");
@@ -674,10 +744,8 @@ public class InterviewService {
 
     /** Per-answer score averages, used to reconstruct a realistic feedback payload. */
     private static class AnswerAggregates {
-        Double overall;
         Double technical;
         Double communication;
-        Double problemSolving;
         Double codeQuality;
         Double project;
         Double confidence;
@@ -707,25 +775,21 @@ public class InterviewService {
     }
 
     private AnswerAggregates computeAnswerAggregates(List<Question> questions) {
-        double oSum = 0, tSum = 0, cSum = 0, pSum = 0, kSum = 0, prSum = 0, cfSum = 0;
-        int oN = 0, tN = 0, cN = 0, pN = 0, kN = 0, prN = 0, cfN = 0;
+        double tSum = 0, cSum = 0, kSum = 0, prSum = 0, cfSum = 0;
+        int tN = 0, cN = 0, kN = 0, prN = 0, cfN = 0;
         for (Question q : questions) {
             if (q.getAnswers() == null) continue;
             for (Answer a : q.getAnswers()) {
-                if (a.getEvaluationScore() != null)   { oSum += a.getEvaluationScore(); oN++; }
                 if (a.getTechnicalScore() != null)    { tSum += a.getTechnicalScore();    tN++; }
                 if (a.getCommunicationScore() != null) { cSum += a.getCommunicationScore(); cN++; }
-                if (a.getProblemSolvingScore() != null){ pSum += a.getProblemSolvingScore();pN++; }
                 if (a.getCodeQualityScore() != null)   { kSum += a.getCodeQualityScore();   kN++; }
                 if (a.getProjectScore() != null)       { prSum += a.getProjectScore();      prN++; }
                 if (a.getConfidenceScore() != null)    { cfSum += a.getConfidenceScore();   cfN++; }
             }
         }
         AnswerAggregates agg = new AnswerAggregates();
-        agg.overall        = oN > 0 ? (double) Math.round(oSum / oN) : null;
         agg.technical      = tN > 0 ? (double) Math.round(tSum / tN) : null;
         agg.communication  = cN > 0 ? (double) Math.round(cSum / cN) : null;
-        agg.problemSolving = pN > 0 ? (double) Math.round(pSum / pN) : null;
         agg.codeQuality    = kN > 0 ? (double) Math.round(kSum / kN) : null;
         agg.project        = prN > 0 ? (double) Math.round(prSum / prN) : null;
         agg.confidence     = cfN > 0 ? (double) Math.round(cfSum / cfN) : null;
@@ -744,16 +808,6 @@ public class InterviewService {
         Map<String, Object> aiCats = (AI != null && AI.get("categoryScores") instanceof Map)
                 ? (Map<String, Object>) AI.get("categoryScores")
                 : new LinkedHashMap<>();
-
-        java.util.function.Function<String, Double> aiScore = key -> {
-            Object cat = aiCats.get(key);
-            if (cat instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> mapCat = (Map<String, Object>) cat;
-                return toDouble(mapCat.get("score"));
-            }
-            return null;
-        };
 
         double comm = firstNonNull(agg.communication, NEUTRAL_BASELINE);
         double tech = firstNonNull(agg.technical,     NEUTRAL_BASELINE);
@@ -912,16 +966,6 @@ public class InterviewService {
             if (v != null) return v;
         }
         return NEUTRAL_BASELINE;
-    }
-
-    private static Double toDouble(Object o) {
-        if (o == null) return null;
-        if (o instanceof Number n) return n.doubleValue();
-        try {
-            return Double.valueOf(o.toString());
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     private static double round1(double d) {
@@ -1201,6 +1245,22 @@ public class InterviewService {
         }
         dto.setTags(q.getTags());
         dto.setTimeComplexity(q.getTimeComplexity());
+
+        // Map VISIBLE test cases only (hidden ones are never exposed to frontend)
+        if (q.getTestCases() != null && !q.getTestCases().isEmpty()) {
+            List<QuestionDTO.TestCaseSummaryDTO> visible = q.getTestCases().stream()
+                    .filter(tc -> !tc.isHidden())
+                    .map(tc -> {
+                        QuestionDTO.TestCaseSummaryDTO t = new QuestionDTO.TestCaseSummaryDTO();
+                        t.setName(tc.getName());
+                        t.setInput(tc.getInput());
+                        t.setExpectedOutput(tc.getExpectedOutput());
+                        return t;
+                    })
+                    .collect(Collectors.toList());
+            dto.setTestCases(visible);
+        }
+
         return dto;
     }
 

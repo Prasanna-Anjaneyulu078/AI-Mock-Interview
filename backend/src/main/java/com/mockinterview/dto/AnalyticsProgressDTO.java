@@ -55,5 +55,9 @@ public class AnalyticsProgressDTO {
         private Double score;
         private String type;
         private String difficulty;
+        private Boolean fallbackActivated;
+        private String aiProviderUsed;
+        private String providerError;
+        private String interviewSource;
     }
 }

@@ -7,6 +7,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.HttpStatusCodeException;
+import com.mockinterview.exception.AIProviderException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -70,9 +72,19 @@ public class GroqProvider extends AbstractLLMProvider {
         body.put("temperature", 0.7);
         body.put("max_tokens", 8192);
 
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        Map<?, ?> response = restTemplate.postForObject(url, request, Map.class);
-        return extractResponseText(response);
+        try {
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            Map<?, ?> response = restTemplate.postForObject(url, request, Map.class);
+            return extractResponseText(response);
+        } catch (HttpStatusCodeException e) {
+            String errorCode = "API_ERROR";
+            String errorMessage = "Groq API error: " + e.getStatusText();
+            if (e.getStatusCode().value() == 429) {
+                errorCode = "RATE_LIMIT_EXCEEDED";
+                errorMessage = "Too many requests have been sent.";
+            }
+            throw new AIProviderException("Groq", e.getStatusCode().value(), errorCode, errorMessage, null);
+        }
     }
 
     @SuppressWarnings("unchecked")

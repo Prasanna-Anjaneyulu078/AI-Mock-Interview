@@ -1,0 +1,277 @@
+/* ============================================================
+   Global Notification — floating top-center card
+   Glassmorphism, soft shadow, rounded, responsive, theme-aware.
+   Colors: amber = fallback active, red = critical (no fallback).
+   ============================================================ */
+
+/* ---- Portal: fixed top-center, overlays every page ---- */
+.gn-portal {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 650px;
+  z-index: 9999;
+  pointer-events: none; /* let clicks pass through to the page */
+  display: flex;
+  justify-content: center;
+}
+
+@media (min-width: 600px) {
+  .gn-portal {
+    width: 90%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .gn-portal {
+    width: min(600px, 92vw); /* desktop: 500–650px */
+  }
+}
+
+/* ---- Card ---- */
+.gn-card {
+  --gn-accent: #f59e0b;
+  --gn-accent-soft: rgba(245, 158, 11, 0.16);
+  --gn-bg: rgba(255, 255, 255, 0.82);
+  --gn-border: rgba(255, 255, 255, 0.65);
+  --gn-text: #0f172a;
+  --gn-text-muted: #475569;
+
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20px 22px;
+  border-radius: 16px;
+  background: var(--gn-bg);
+  border: 1px solid var(--gn-border);
+  box-shadow:
+    0 22px 50px -14px rgba(15, 23, 42, 0.35),
+    0 8px 18px -8px rgba(15, 23, 42, 0.2);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  color: var(--gn-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+  pointer-events: auto; /* card itself is interactive */
+  animation: gn-enter 300ms ease both;
+}
+
+.gn-card--closing {
+  animation: gn-exit 200ms ease both;
+}
+
+/* Left accent bar */
+.gn-card__accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--gn-accent);
+}
+
+/* ---- Header: badge + close ---- */
+.gn-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.gn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 8px;
+  border-radius: 999px;
+  background: var(--gn-accent-soft);
+  color: var(--gn-accent);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gn-badge__icon {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gn-accent);
+  box-shadow: 0 0 0 3px var(--gn-accent-soft);
+}
+
+.gn-card__close {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gn-text-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.gn-card__close:hover {
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--gn-text);
+}
+
+/* ---- Body: icon + text ---- */
+.gn-card__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.gn-card__icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 17px;
+  font-weight: 700;
+  font-style: italic;
+  color: #ffffff;
+  background: var(--gn-accent);
+}
+
+.gn-card__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.gn-card__title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--gn-text);
+}
+
+.gn-card__message {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 24px;
+  color: var(--gn-text-muted);
+  white-space: pre-line;
+}
+
+.gn-card__meta {
+  margin: 12px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--gn-text-muted);
+  opacity: 0.85;
+}
+
+/* ---- Actions ---- */
+.gn-card__actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.gn-card__continue {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #ffffff;
+  background: var(--gn-accent);
+  box-shadow: 0 6px 16px -6px var(--gn-accent);
+  transition: transform 0.12s ease, filter 0.15s ease;
+}
+
+.gn-card__continue:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.gn-card__continue:active {
+  transform: translateY(0);
+}
+
+/* ---- Severity variants ---- */
+.gn-card--fallback {
+  --gn-accent: #f59e0b;
+  --gn-accent-soft: rgba(245, 158, 11, 0.16);
+}
+
+.gn-card--critical {
+  --gn-accent: #ef4444;
+  --gn-accent-soft: rgba(239, 68, 68, 0.14);
+}
+
+/* ---- Dark mode ---- */
+:root[data-theme="dark"] .gn-card {
+  --gn-bg: rgba(30, 41, 59, 0.82);
+  --gn-border: rgba(255, 255, 255, 0.1);
+  --gn-text: #f8fafc;
+  --gn-text-muted: #94a3b8;
+  box-shadow:
+    0 26px 60px -16px rgba(0, 0, 0, 0.7),
+    0 8px 20px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 480px) {
+  .gn-card {
+    padding: 16px 18px;
+  }
+  .gn-card__title {
+    font-size: 18px;
+    line-height: 26px;
+  }
+  .gn-card__message {
+    font-size: 14px;
+    line-height: 22px;
+  }
+}
+
+/* ---- Animations ---- */
+@keyframes gn-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gn-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gn-card,
+  .gn-card--closing {
+    animation: none;
+  }
+}

@@ -131,6 +131,9 @@ public class MurfService {
                 }
             } catch (HttpStatusCodeException ex) {
                 int code = ex.getStatusCode().value();
+                if (code == 429) {
+                    throw new com.mockinterview.exception.AIProviderException("Murf", 429, "RATE_LIMIT_EXCEEDED", "Too many requests have been sent.", null);
+                }
                 if (code == HttpStatus.UNAUTHORIZED.value()
                         || code == HttpStatus.FORBIDDEN.value()
                         || code == HttpStatus.BAD_REQUEST.value()) {
@@ -204,13 +207,6 @@ public class MurfService {
                 .language(asString(m.get("language")))
                 .styles(extractStyles(m.get("styles")))
                 .build();
-    }
-
-    private String getAuthErrorMessage(String message) {
-        if (message.contains("Invalid API Key")) {
-            return "Murf AI rejected the API key. Please check your MURF_API_KEY environment variable.";
-        }
-        return "Murf AI authentication failed: " + message;
     }
 
     /**

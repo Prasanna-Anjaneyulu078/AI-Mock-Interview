@@ -77,6 +77,12 @@ public class SpeechToTextService {
                 return Map.of("text", "", "duration", 0);
             }
             log.debug("AssemblyAI upload succeeded: {}", uploadUrl);
+        } catch (org.springframework.web.client.HttpStatusCodeException hse) {
+            if (hse.getStatusCode().value() == 429) {
+                throw new com.mockinterview.exception.AIProviderException("AssemblyAI", 429, "RATE_LIMIT_EXCEEDED", "Too many requests have been sent.", null);
+            }
+            log.error("AssemblyAI audio upload failed: {}", hse.getMessage());
+            return Map.of("text", "", "duration", 0);
         } catch (Exception e) {
             log.error("AssemblyAI audio upload failed: {}", e.getMessage());
             return Map.of("text", "", "duration", 0);
@@ -108,6 +114,12 @@ public class SpeechToTextService {
                 return Map.of("text", "", "duration", 0);
             }
             log.debug("AssemblyAI transcript job submitted: id={}", transcriptId);
+        } catch (org.springframework.web.client.HttpStatusCodeException hse) {
+            if (hse.getStatusCode().value() == 429) {
+                throw new com.mockinterview.exception.AIProviderException("AssemblyAI", 429, "RATE_LIMIT_EXCEEDED", "Too many requests have been sent.", null);
+            }
+            log.error("AssemblyAI transcript submission failed: {}", hse.getMessage());
+            return Map.of("text", "", "duration", 0);
         } catch (Exception e) {
             log.error("AssemblyAI transcript submission failed: {}", e.getMessage());
             return Map.of("text", "", "duration", 0);
@@ -165,6 +177,11 @@ public class SpeechToTextService {
 
                 // "queued" or "processing" — continue polling
 
+            } catch (org.springframework.web.client.HttpStatusCodeException hse) {
+                if (hse.getStatusCode().value() == 429) {
+                    throw new com.mockinterview.exception.AIProviderException("AssemblyAI", 429, "RATE_LIMIT_EXCEEDED", "Too many requests have been sent.", null);
+                }
+                log.warn("AssemblyAI poll {} failed: {}", poll + 1, hse.getMessage());
             } catch (Exception e) {
                 log.warn("AssemblyAI poll {} failed: {}", poll + 1, e.getMessage());
             }

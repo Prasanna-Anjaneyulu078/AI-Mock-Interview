@@ -19,6 +19,7 @@ public class CodingResult {
     @JoinColumn(name = "submission_id", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private CodingSubmission submission;
 
     private Integer passedTests;

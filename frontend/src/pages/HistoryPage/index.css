@@ -199,3 +199,12 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* DESKTOP (>=1024px): fill the app shell, scroll internally */
+@media (min-width: 1024px) {
+  .history-page {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}

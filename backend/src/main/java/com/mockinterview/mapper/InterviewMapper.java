@@ -13,6 +13,7 @@ public interface InterviewMapper {
     @Mapping(source = "interviewType", target = "interviewType")
     @Mapping(source = "interviewType", target = "role")
     @Mapping(source = "adaptedDifficulty", target = "adaptedDifficulty")
+    @Mapping(source = "interviewMode", target = "interviewMode")
     @Mapping(source = "startedAt", target = "createdAt")
     @Mapping(source = "questions", target = "questions")
     @Mapping(source = "messages", target = "messages")

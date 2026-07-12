@@ -36,7 +36,11 @@ public class CodingQuestion {
     private String difficulty;
 
     @Column(columnDefinition = "TEXT")
-    private String starterCode; // JSON string mapping language to starter code
+    private String starterCode; // JSON string mapping language to SIGNATURE-ONLY starter code
+
+    /** Full reference solution — stored server-side, NEVER sent to frontend. */
+    @Column(columnDefinition = "TEXT")
+    private String solutionCode;
 
     @Column(columnDefinition = "TEXT")
     private String languageSupport; // CSV of supported languages (e.g. "java,python,javascript,c++,c")

@@ -7,6 +7,7 @@
   --ide-accent: var(--accent-color);
   --ide-success: var(--success-color);
   --ide-danger: var(--danger-color);
+  --ide-radius: 10px;
 }
 
 .leetcode-ide {
@@ -20,6 +21,13 @@
   transition: background-color 0.3s ease;
 }
 
+/* Prevent text selection / cursor change while dragging the splitter */
+body.ide-resizing {
+  cursor: col-resize;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .leetcode-ide.ide-fullscreen {
   position: fixed;
   top: 0;
@@ -29,14 +37,23 @@
   z-index: 9999;
 }
 
+/* ----------------------------- Navbar ----------------------------- */
 .ide-navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   height: 50px;
+  flex: 0 0 auto;
   background-color: var(--ide-panel-bg);
   border-bottom: 1px solid var(--ide-border);
   padding: 0 1rem;
+}
+
+.navbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .ide-logo {
@@ -46,19 +63,81 @@
   margin-right: 1rem;
 }
 
+/* Persistent End Interview button (top-right on desktop/tablet) */
+.ide-end-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--ide-danger, #ef4444);
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: filter 0.2s, opacity 0.2s;
+}
+
+.ide-end-btn:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.ide-end-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ide-end-icon {
+  font-size: 0.8rem;
+}
+
+.timer-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .timer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--card);
   border: 1px solid var(--border);
   color: var(--text-primary);
-  padding: 4px 10px;
-  border-radius: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
   font-family: monospace;
   font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-.action-buttons {
+.timer-icon { font-size: 0.95rem; line-height: 1; }
+
+.timer-controls {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 2px;
+}
+
+.timer-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 2px 5px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.timer-btn:hover {
+  color: var(--text-primary);
+  background: rgba(128, 128, 128, 0.14);
 }
 
 .btn-run, .btn-submit {
@@ -105,34 +184,92 @@
   cursor: pointer;
 }
 
-.btn-icon:hover {
-  color: var(--ide-text-light);
-}
+.btn-icon:hover { color: var(--ide-text-light); }
 
+/* ----------------------------- Body / Split layout ----------------------------- */
 .ide-body {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
+  position: relative;
+}
+
+.ide-body.is-resizing {
+  cursor: col-resize;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .ide-left-panel {
-  flex: 1;
+  flex: 0 0 var(--left-width, 40%);
+  min-width: 0;            /* allow shrink — prevents horizontal overflow */
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--ide-border);
   background-color: var(--ide-bg);
-  min-width: 300px;
+  overflow: hidden;
 }
 
 .ide-right-panel {
-  flex: 1.2;
+  flex: 1 1 0;
+  min-width: 0;            /* keep editor from forcing overflow */
   display: flex;
   flex-direction: column;
-  min-width: 400px;
+  overflow: hidden;
 }
 
+/* Draggable splitter */
+.ide-splitter {
+  flex: 0 0 6px;
+  position: relative;
+  cursor: col-resize;
+  background: var(--ide-border);
+  touch-action: none;      /* enable custom touch dragging */
+  transition: background-color 0.2s ease;
+}
+
+.ide-splitter::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 36px;
+  border-radius: 2px;
+  background: var(--text-secondary);
+  opacity: 0.45;
+  transition: opacity 0.2s ease, height 0.2s ease;
+}
+
+.ide-splitter:hover,
+.ide-splitter:active,
+.ide-splitter:focus-visible {
+  background: var(--ide-accent);
+}
+
+.ide-splitter:hover::before,
+.ide-splitter:active::before,
+.ide-splitter:focus-visible::before {
+  opacity: 1;
+  height: 48px;
+  background: #fff;
+}
+
+.ide-splitter:focus {
+  outline: none;
+}
+
+.ide-splitter:focus-visible {
+  outline: 2px solid var(--ide-accent);
+  outline-offset: 1px;
+}
+
+/* ----------------------------- Panel chrome ----------------------------- */
 .panel-header {
   height: 40px;
+  flex: 0 0 auto;
   background-color: var(--ide-panel-bg);
   border-bottom: 1px solid var(--ide-border);
   display: flex;
@@ -142,66 +279,221 @@
 
 .panel-header h3 {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  letter-spacing: 0.04em;
   color: var(--ide-text-light);
   text-transform: uppercase;
 }
 
 .panel-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 1rem;
+  overflow-x: hidden;       /* never let content create a horizontal scrollbar */
+  padding: 1.25rem 1.25rem 2rem;
+  scroll-behavior: smooth;  /* smooth vertical scrolling */
 }
 
+/* ----------------------------- Problem description ----------------------------- */
 .problem-description h1 {
   margin-top: 0;
   font-size: 1.5rem;
+  line-height: 1.3;
   color: var(--ide-text-light);
+  overflow-wrap: anywhere;
 }
 
 .difficulty-badge {
   display: inline-block;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
   font-weight: 600;
   margin-bottom: 1rem;
+  text-transform: capitalize;
 }
 
-.diff-easy { color: #00b8a3; background: rgba(0, 184, 163, 0.15); }
+.diff-easy   { color: #00b8a3; background: rgba(0, 184, 163, 0.15); }
 .diff-medium { color: #ffc01e; background: rgba(255, 192, 30, 0.15); }
-.diff-hard { color: #ff375f; background: rgba(255, 55, 95, 0.15); }
+.diff-hard   { color: #ff375f; background: rgba(255, 55, 95, 0.15); }
+
+/* Sticky section navigation */
+.section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  background: var(--ide-bg);
+  border-bottom: 1px solid var(--ide-border);
+}
+
+.section-nav button {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.section-nav button:hover {
+  color: var(--ide-text-light);
+  border-color: var(--accent-color);
+}
+
+.section-nav button:focus-visible {
+  outline: 2px solid var(--ide-accent);
+  outline-offset: 1px;
+}
+
+/* Keep anchored sections from hiding under the sticky nav */
+.problem-description [id] {
+  scroll-margin-top: 3.25rem;
+}
 
 .problem-text {
-  line-height: 1.6;
+  line-height: 1.7;
   margin-bottom: 1.5rem;
+}
+
+.problem-text p {
+  margin: 0;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;   /* wrap long unbroken strings */
+  word-break: break-word;
 }
 
 .problem-constraints {
   background-color: rgba(128, 128, 128, 0.05);
-  padding: 1rem;
-  border-radius: 6px;
+  padding: 1rem 1.1rem;
+  border-radius: var(--ide-radius);
   border: 1px solid var(--border);
+  margin-bottom: 1.5rem;
 }
 
 .problem-constraints pre {
   margin: 0.5rem 0 0 0;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   font-family: monospace;
+  font-size: 0.85rem;
+  max-width: 100%;
+  overflow-x: auto;          /* scroll independently if needed */
 }
 
+.problem-examples h3 {
+  font-size: 1.15rem;
+  margin: 0 0 0.75rem;
+  color: var(--ide-text-light);
+}
+
+.example-box {
+  background: var(--surface);
+  padding: 1rem 1.1rem;
+  border-radius: var(--ide-radius);
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--card-shadow);
+}
+
+.example-title {
+  display: block;
+  margin-bottom: 0.6rem;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.io-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.io-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.io-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.io-pre {
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-family: monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  overflow-x: auto;          /* code blocks scroll independently */
+}
+
+.problem-hints {
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid var(--accent-light);
+  padding: 1rem 1.1rem;
+  border-radius: var(--ide-radius);
+  margin-bottom: 1.5rem;
+}
+
+.problem-hints p {
+  margin: 0.5rem 0 0;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.muted-text {
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 0.25rem 0;
+}
+
+/* ----------------------------- Editor ----------------------------- */
 .editor-container {
   flex: 2;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
 }
 
 .editor-header {
   display: flex;
+  align-items: center;
   gap: 1rem;
+  flex-wrap: wrap; /* language select can drop to a second row if cramped */
+}
+
+/* Right-panel action bar: Run Code + Submit + Timer, aligned right */
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto; /* push the action bar to the right edge of the header */
+  flex-wrap: nowrap; /* keep Run / Submit / Timer on one line */
+}
+
+.editor-timer {
+  display: flex;
+  align-items: center;
 }
 
 .ide-select {
@@ -213,17 +505,25 @@
   outline: none;
 }
 
+.ide-select:focus-visible {
+  outline: 2px solid var(--ide-accent);
+  outline-offset: 1px;
+}
+
 .monaco-wrapper {
   flex: 1;
   min-height: 0;
+  min-width: 0;
 }
 
+/* ----------------------------- Results ----------------------------- */
 .results-container {
   flex: 1;
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--ide-border);
   min-height: 0;
+  min-width: 0;
   background-color: var(--ide-bg);
 }
 
@@ -242,13 +542,16 @@
   border-bottom: 2px solid transparent;
 }
 
-.tab-btn:hover {
-  color: var(--ide-text-light);
-}
+.tab-btn:hover { color: var(--ide-text-light); }
 
 .tab-btn.active {
   color: var(--ide-text-light);
   border-bottom-color: var(--ide-accent);
+}
+
+.tab-btn:focus-visible {
+  outline: 2px solid var(--ide-accent);
+  outline-offset: -2px;
 }
 
 .results-content {
@@ -262,9 +565,7 @@
 }
 
 /* Test Cases View */
-.testcases-view {
-  height: 100%;
-}
+.testcases-view { height: 100%; }
 
 .tc-layout {
   display: flex;
@@ -273,6 +574,7 @@
 
 .tc-sidebar {
   width: 100px;
+  flex: 0 0 100px;
   border-right: 1px solid var(--ide-border);
   padding: 0.5rem;
   display: flex;
@@ -298,30 +600,17 @@
   border-color: var(--accent-color);
 }
 
-.tc-pill.tc-pass {
-  border-left: 3px solid var(--ide-success);
-}
-
-.tc-pill.tc-fail {
-  border-left: 3px solid var(--ide-danger);
-}
+.tc-pill.tc-pass { border-left: 3px solid var(--ide-success); }
+.tc-pill.tc-fail { border-left: 3px solid var(--ide-danger); }
 
 .tc-details {
   flex: 1;
+  min-width: 0;
   padding: 1rem;
   overflow-y: auto;
 }
 
-.io-box {
-  margin-top: 1rem;
-}
-
-.io-label {
-  display: block;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.25rem;
-}
+.io-box { margin-top: 1rem; }
 
 .io-box pre {
   background: rgba(128, 128, 128, 0.05);
@@ -329,7 +618,13 @@
   border-radius: 4px;
   margin: 0;
   font-family: monospace;
+  font-size: 0.85rem;
   border: 1px solid var(--border);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .hidden-warning {
@@ -351,18 +646,22 @@
   padding: 1rem;
   border-radius: 4px;
   overflow-x: auto;
+  max-width: 100%;
   border: 1px solid var(--danger-color);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .metrics {
   display: flex;
+  flex-wrap: wrap;
   gap: 1.5rem;
   margin-top: 1rem;
   font-family: monospace;
   color: var(--text-secondary);
 }
 
-/* Evaluation Panel */
+/* ----------------------------- Evaluation Panel ----------------------------- */
 .evaluation-panel {
   background-color: var(--ide-bg);
 }
@@ -413,4 +712,200 @@
 .eval-feedback p {
   line-height: 1.5;
   color: var(--ide-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ----------------------------- Mobile tab bar ----------------------------- */
+.mobile-tabbar {
+  display: none; /* shown only on mobile via media query */
+}
+
+/* Mobile sticky End Interview footer — hidden on desktop/tablet */
+.ide-mobile-endbtn {
+  display: none;
+}
+
+/* ----------------------------- Responsive ----------------------------- */
+
+/* Tablet (768px - 1200px): keep the adaptive split view, editor prioritised.
+   The saved/default 40/60 ratio already favours the editor enough; we only
+   relax the max-left so the editor keeps more room on narrower tablets. */
+@media (max-width: 1200px) {
+  .panel-content {
+    padding: 1rem 1rem 1.5rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .timer-badge {
+    padding: 5px 10px;
+    font-size: 0.85rem;
+  }
+  .btn-run, .btn-submit {
+    padding: 6px 12px;
+  }
+  /* Keep the action bar from wrapping on tablets */
+  .editor-actions {
+    gap: 0.4rem;
+  }
+}
+
+/* Mobile (< 768px): collapse panels into tabs — Problem / Code / Test Cases */
+@media (max-width: 768px) {
+  .leetcode-ide {
+    height: calc(100vh - 64px);
+  }
+
+  /* End Interview moves from the top-right to a sticky footer on mobile */
+  .ide-end-btn {
+    display: none;
+  }
+
+  /* Sticky footer End Interview action */
+  .ide-mobile-endbtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 14px;
+    background-color: var(--ide-danger, #ef4444);
+    color: #ffffff;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .ide-mobile-endbtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Top sticky action bar: Run / Submit / Timer must stay on one line */
+  .editor-header {
+    gap: 0.5rem;
+  }
+
+  .editor-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+
+  .ide-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .ide-splitter {
+    display: none; /* dragging not used on mobile; tabs replace it */
+  }
+
+  .mobile-tabbar {
+    display: flex;
+    flex: 0 0 auto;
+    border-bottom: 1px solid var(--ide-border);
+    background: var(--ide-panel-bg);
+  }
+
+  .mobile-tabbar button {
+    flex: 1;
+    padding: 0.75rem 0.25rem;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--ide-text);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .mobile-tabbar button.active {
+    color: var(--ide-accent);
+    border-bottom-color: var(--ide-accent);
+  }
+
+  .mobile-tabbar button:focus-visible {
+    outline: 2px solid var(--ide-accent);
+    outline-offset: -2px;
+  }
+
+  .ide-left-panel,
+  .ide-right-panel {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    border-right: none;
+    overflow: hidden;
+  }
+
+  /* Show only the active tab's panel */
+  .leetcode-ide[data-mobile-tab="problem"] .ide-right-panel { display: none; }
+  .leetcode-ide[data-mobile-tab="problem"] .ide-left-panel  { display: flex; }
+
+  .leetcode-ide[data-mobile-tab="code"] .ide-left-panel       { display: none; }
+  .leetcode-ide[data-mobile-tab="code"] .ide-right-panel      { display: flex; }
+  .leetcode-ide[data-mobile-tab="code"] .results-container    { display: none; }
+
+  .leetcode-ide[data-mobile-tab="testcases"] .ide-left-panel  { display: none; }
+  .leetcode-ide[data-mobile-tab="testcases"] .ide-right-panel { display: flex; }
+  .leetcode-ide[data-mobile-tab="testcases"] .editor-container { display: none; }
+
+  .leetcode-ide[data-mobile-tab="evaluation"] .ide-left-panel  { display: none; }
+  .leetcode-ide[data-mobile-tab="evaluation"] .ide-right-panel { display: flex; }
+
+  .panel-content {
+    padding: 1rem;
+  }
+}
+
+/* Small phones: allow the navbar to wrap so nothing is squeezed */
+@media (max-width: 640px) {
+  .ide-navbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 50px;
+    gap: 8px;
+    padding: 8px 1rem;
+  }
+
+  .navbar-left { flex: 1 1 auto; }
+
+  .navbar-right { order: 3; }
+
+  .btn-run, .btn-submit {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+
+  /* If the action bar is too wide, allow horizontal scroll rather than wrapping */
+  .editor-actions {
+    overflow-x: auto;
+    gap: 0.4rem;
+  }
+
+  .timer-badge {
+    padding: 4px 8px;
+    font-size: 0.78rem;
+  }
+
+  .eval-content { padding: 1rem; }
+  .score-hero h1 { font-size: 3rem; }
+}
+
+/* ============================================================
+   DESKTOP (>=1024px): use the full area below the fixed header
+   instead of the hard-coded calc(100vh - 64px). The IDE keeps
+   overflow:hidden; the description/editor/results scroll
+   internally so the toolbar, timer and output stay visible.
+   ============================================================ */
+@media (min-width: 1024px) {
+  .leetcode-ide {
+    height: 100%;
+    min-height: 0;
+  }
 }

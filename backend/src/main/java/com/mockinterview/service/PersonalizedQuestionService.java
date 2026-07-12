@@ -4,26 +4,32 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mockinterview.entity.Interview;
 import com.mockinterview.entity.Question;
 import com.mockinterview.entity.TestCase;
+import com.mockinterview.repository.InterviewRepository;
 import com.mockinterview.repository.QuestionRepository;
 import com.mockinterview.service.ai.AIProvider;
+import com.mockinterview.util.InterviewModes;
+import com.mockinterview.exception.AIProviderException;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.LinkedHashMap;
 
+@Slf4j
 @Service
 public class PersonalizedQuestionService {
 
     private final AIProvider aiProvider;
     private final QuestionRepository questionRepository;
     private final ResumeService resumeService;
+    private final InterviewRepository interviewRepository;
     private final ObjectMapper objectMapper;
+    private final LocalCodingQuestionProvider localCodingQuestionProvider;
+    private final com.mockinterview.repository.QuestionBankRepository questionBankRepository;
 
     private static final double DEDUP_THRESHOLD = 0.7;
     private static final int MAX_ATTEMPTS = 2;
@@ -45,17 +51,22 @@ public class PersonalizedQuestionService {
     );
 
     public PersonalizedQuestionService(AIProvider aiProvider, QuestionRepository questionRepository,
-                                       ResumeService resumeService) {
+                                       ResumeService resumeService, InterviewRepository interviewRepository,
+                                       LocalCodingQuestionProvider localCodingQuestionProvider,
+                                       com.mockinterview.repository.QuestionBankRepository questionBankRepository) {
         this.aiProvider = aiProvider;
         this.questionRepository = questionRepository;
         this.resumeService = resumeService;
+        this.interviewRepository = interviewRepository;
+        this.localCodingQuestionProvider = localCodingQuestionProvider;
+        this.questionBankRepository = questionBankRepository;
         this.objectMapper = new ObjectMapper();
     }
 
     public void generateAndSaveAIQuestions(Interview interview, String role, String resumeText,
                                            String structuredProfile, int hrCount, int techCount, 
                                            int projCount, int codeCount, int interestCount, String level,
-                                           Long userId, Long resumeId) {
+                                           Long userId, Long resumeId, String interviewMode) {
         if (level == null) level = "STANDARD";
         String lvl = level.toUpperCase();
         String levelDifficulty = LEVEL_DIFFICULTY.getOrDefault(lvl, "Medium");
@@ -68,6 +79,9 @@ public class PersonalizedQuestionService {
         
         int count = hrCount + techCount + projCount + codeCount + interestCount;
         if (count == 0) return;
+
+        boolean codingMode = InterviewModes.CODING.equals(InterviewModes.normalize(interviewMode));
+        log.info("[INTERVIEW_MODE] {}", InterviewModes.normalize(interviewMode));
 
         Set<String> seen = new HashSet<>();
         List<Question> past = new ArrayList<>();
@@ -90,11 +104,16 @@ public class PersonalizedQuestionService {
         int minCode = codeCount;
 
         List<Question> accepted = new ArrayList<>();
+        AIProviderException capturedException = null;
         for (int attempt = 0; attempt < MAX_ATTEMPTS && accepted.size() < count; attempt++) {
             String aiResponse;
             try {
-                aiResponse = aiProvider.generateQuestions(role, resumeContext, guidance, levelDifficulty,
+                aiResponse = aiProvider.generateQuestions(interviewMode, role, resumeContext, guidance, levelDifficulty,
                         hrCount, techCount, projCount, codeCount, interestCount, interview.getSelectedInterests(), count, avoidList);
+            } catch (AIProviderException e) {
+                System.err.println("⚠️ AI Provider Exception: " + e.getMessage());
+                capturedException = e;
+                break;
             } catch (Exception e) {
                 System.err.println("⚠️ AI failed to generate questions: " + e.getMessage());
                 break;
@@ -109,9 +128,12 @@ public class PersonalizedQuestionService {
                 if (text == null) continue;
                 if (TextSimilarity.isDuplicate(text, seen, DEDUP_THRESHOLD)) continue;
                 
-                Question q = toQuestion(interview, qMap, text, levelDifficulty);
+                Question q = toQuestion(interview, qMap, text, levelDifficulty, interviewMode);
                 if (q == null) continue;
-                
+
+                if (codingMode) {
+                    log.info("[QUESTION_GENERATED] CODING title='{}'", q.getTitle());
+                }
                 accepted.add(q);
                 seen.add(TextSimilarity.normalize(text));
                 if (accepted.size() >= count) break;
@@ -128,13 +150,49 @@ public class PersonalizedQuestionService {
                 addFallbackCodingQuestions(interview, accepted, (int)(minCode - codeQsInAccepted), role, levelDifficulty, seen, genLang);
             }
 
-            for (Question q : accepted) questionRepository.save(q);
+            for (Question q : accepted) {
+                // ── CODING-mode integrity guard ──
+                // A CODING interview MUST contain ONLY coding questions. Defensively reject
+                // any non-coding question before it is persisted, so a bad AI payload or a
+                // future regression can never pollute a coding interview with MCQ /
+                // behavioral / HR / resume questions.
+                if (codingMode && !Boolean.TRUE.equals(q.getIsCodeQuestion())) {
+                    log.error("[INVALID_QUESTION_TYPE] Expected CODING Received {} title='{}'",
+                            q.getType(), q.getTitle());
+                    throw new IllegalStateException(
+                            "Invalid question type for coding interview: expected CODING but received "
+                                    + (q.getType() == null ? "null" : q.getType()));
+                }
+                questionRepository.save(q);
+                if (codingMode) {
+                    log.info("[QUESTION_SAVED] CODING title='{}'", q.getTitle());
+                }
+            }
         } catch (Exception e) {
             System.err.println("⚠️ Failed to save AI questions for interview " + interview.getId() + ": " + e.getMessage());
         }
 
         if (accepted.size() < count) {
-            forceSaveFallbackQuestions(interview, count - accepted.size(), seen);
+            forceSaveFallbackQuestions(interview, count - accepted.size(), seen, interviewMode);
+        }
+
+        if (capturedException != null) {
+            System.err.printf("[AI_PROVIDER_ERROR] Provider=%s Status=%d Reason=%s Fallback=true InterviewMode=%s%n",
+                    capturedException.getProviderName(),
+                    capturedException.getHttpStatus(),
+                    capturedException.getMessage(),
+                    interviewMode != null ? interviewMode : "RESUME");
+
+            interview.setFallbackActivated(true);
+            interview.setAiProviderUsed(capturedException.getProviderName());
+            interview.setProviderError(capturedException.getMessage());
+            interview.setInterviewSource("Local Question Engine");
+            interviewRepository.save(interview);
+
+            capturedException.setFallbackUsed(true);
+            capturedException.setSelectedInterviewMode(interviewMode != null ? interviewMode : "RESUME");
+            capturedException.setQuestionSource("Local Question Engine");
+            throw capturedException;
         }
     }
 
@@ -179,10 +237,24 @@ public class PersonalizedQuestionService {
         }
     }
 
-    private Question toQuestion(Interview interview, Map<String, Object> qMap, String text, String levelDifficulty) {
+    private Question toQuestion(Interview interview, Map<String, Object> qMap, String text, String levelDifficulty, String interviewMode) {
         String category = firstNonBlank(qMap, "category", "type");
         String type = normalizeCategory(category);
         boolean isCode = qMap.get("isCodeQuestion") instanceof Boolean b && b;
+
+        // ── STRICT CODING MODE ENFORCEMENT ──
+        // A CODING interview must contain ONLY coding questions. Force the type/flag
+        // regardless of what the AI returned, and log if the AI tried to sneak a
+        // non-coding question into a coding interview.
+        boolean codingMode = InterviewModes.CODING.equals(InterviewModes.normalize(interviewMode));
+        if (codingMode) {
+            if (!isCode || !"coding".equals(type)) {
+                log.warn("[INVALID_QUESTION_TYPE] Expected CODING Received {} — coercing to coding",
+                        isCode ? type : (category != null ? category : "UNKNOWN"));
+            }
+            isCode = true;
+            type = "coding";
+        }
         String idealAnswer = qMap.get("idealAnswer") instanceof String s ? s : "";
         String explanation = qMap.get("explanation") instanceof String s ? s : "";
 
@@ -193,13 +265,20 @@ public class PersonalizedQuestionService {
         String exampleOutput = qMap.get("exampleOutput") instanceof String s ? s : null;
         String constraints = qMap.get("constraints") instanceof String s ? s : null;
         String starterCode = firstNonBlank(qMap, "starterCode", "codeSnippet");
-        String tags = qMap.get("tags") instanceof String s ? s : null;
-        String timeComplexity = qMap.get("timeComplexity") instanceof String s ? s : null;
-        String codeType = qMap.get("codeType") instanceof String s ? s : (isCode ? "write" : null);
+        String solutionCode = qMap.get("solutionCode") instanceof String s ? s : null;
         String codeLanguage = firstNonBlank(qMap, "codeLanguage", "language");
         if (codeLanguage == null && isCode && interview.getCodingLanguage() != null) {
             codeLanguage = interview.getCodingLanguage();
         }
+
+        // Sanitize: strip any implementation body, keep only the method signature stub
+        if (starterCode != null) {
+            String langForSanitize = codeLanguage != null ? codeLanguage : "javascript";
+            starterCode = com.mockinterview.util.StarterCodeSanitizer.sanitize(starterCode, langForSanitize);
+        }
+        String tags = qMap.get("tags") instanceof String s ? s : null;
+        String timeComplexity = qMap.get("timeComplexity") instanceof String s ? s : null;
+        String codeType = qMap.get("codeType") instanceof String s ? s : (isCode ? "write" : null);
 
         Question q = Question.builder()
                 .interview(interview)
@@ -216,6 +295,7 @@ public class PersonalizedQuestionService {
                 .exampleOutput(exampleOutput)
                 .constraints(constraints)
                 .starterCode(starterCode)
+                .solutionCode(solutionCode)
                 .tags(tags)
                 .timeComplexity(timeComplexity)
                 .codeType(codeType)
@@ -248,6 +328,7 @@ public class PersonalizedQuestionService {
     private String normalizeCategory(String category) {
         if (category == null) return "technical";
         String c = category.toLowerCase();
+        if (c.contains("cod")) return "coding";
         if (c.contains("behav") || c.contains("hr")) return "behavioral";
         if (c.contains("proj") || c.contains("experien")) return "project";
         return "technical";
@@ -261,144 +342,100 @@ public class PersonalizedQuestionService {
         return null;
     }
 
-    public void forceSaveFallbackQuestions(Interview interview, int needed, Set<String> seen) {
+    public void forceSaveFallbackQuestions(Interview interview, int needed, Set<String> seen, String mode) {
         if (seen == null) seen = new HashSet<>();
-        
-        Map<String, String[]> fallbacks = new LinkedHashMap<>();
-        fallbacks.put("How do you approach debugging a complex production issue?", new String[]{"problem-solving", "false"});
-        fallbacks.put("Describe a challenging technical problem you solved recently and your solution.", new String[]{"behavioral", "false"});
-        fallbacks.put("Explain a design decision you are proud of from a past project.", new String[]{"project", "false"});
-        fallbacks.put("How do you ensure code quality and maintainability in your work?", new String[]{"technical", "false"});
-        fallbacks.put("Walk me through how you would design a scalable system for a high-traffic application.", new String[]{"technical", "false"});
-        fallbacks.put("How do you handle disagreements with teammates on technical decisions?", new String[]{"behavioral", "false"});
-        fallbacks.put("Describe your approach to performance optimization in an application.", new String[]{"technical", "false"});
-        fallbacks.put("How do you stay current with new technologies and industry trends?", new String[]{"behavioral", "false"});
-        fallbacks.put("What is your process for writing and maintaining unit tests?", new String[]{"technical", "false"});
-        fallbacks.put("Give an example of when you had to meet a tight deadline. How did you manage it?", new String[]{"situational", "false"});
-        
-        // Expanded fallbacks for LONG interviews
-        fallbacks.put("Tell me about a time you had to learn a new technology quickly.", new String[]{"behavioral", "false"});
-        fallbacks.put("How do you prioritize your work when faced with multiple urgent tasks?", new String[]{"situational", "false"});
-        fallbacks.put("Describe a time when a project you were working on failed. What did you learn?", new String[]{"behavioral", "false"});
-        fallbacks.put("How do you balance technical debt with the need to ship features quickly?", new String[]{"technical", "false"});
-        fallbacks.put("What is your approach to code reviews, both giving and receiving feedback?", new String[]{"technical", "false"});
-        fallbacks.put("Explain the most complex architecture you have designed or worked on.", new String[]{"project", "false"});
-        fallbacks.put("How do you handle shifting requirements from stakeholders?", new String[]{"situational", "false"});
-        fallbacks.put("Tell me about a time you mentored a junior team member.", new String[]{"behavioral", "false"});
-        fallbacks.put("Describe a situation where you had to compromise on a technical implementation.", new String[]{"behavioral", "false"});
-        fallbacks.put("What strategies do you use to ensure application security during development?", new String[]{"technical", "false"});
+        if (mode == null) mode = "RESUME";
 
-        int added = 0;
-        for (Map.Entry<String, String[]> fb : fallbacks.entrySet()) {
-            if (added >= needed) break;
+        String role = interview.getInterviewType() != null ? interview.getInterviewType() : "CS_FUNDAMENTALS";
+        String difficulty = LEVEL_DIFFICULTY.getOrDefault(
+                interview.getDifficulty() != null ? interview.getDifficulty().toUpperCase() : "STANDARD", "MEDIUM").toUpperCase();
+
+        if (mode.equalsIgnoreCase("CODING") || mode.equalsIgnoreCase("CODING_INTERVIEW")) {
+            log.info("[FALLBACK_CODING_PROVIDER_USED] true mode=CODING");
+            int codingAdded = 0;
+            while (codingAdded < needed) {
+                Question cq = localCodingQuestionProvider.buildQuestion(
+                        interview, difficulty, interview.getCodingLanguage(), seen);
+                if (cq == null) break; // pool exhausted
+                questionRepository.save(cq);
+                log.info("[QUESTION_SAVED] CODING title='{}'", cq.getTitle());
+                codingAdded++;
+            }
+            return;
+        }
+
+        // For non-coding modes, query DB dynamically based on mode mapping
+        String category = "technical";
+        if (mode.equalsIgnoreCase("BEHAVIORAL") || mode.equalsIgnoreCase("HR")) {
+            category = "behavioral";
+        } else if (mode.equalsIgnoreCase("RESUME_BASED") || mode.equalsIgnoreCase("RESUME") || mode.equalsIgnoreCase("PROJECT")) {
+            category = "project";
+        }
+        
+        List<com.mockinterview.entity.QuestionBank> dbQuestions = questionBankRepository.findRandomQuestions(role, difficulty, category, needed);
+
+        // Map DB Questions to Interview Questions
+        List<Question> saved = new ArrayList<>();
+        for (com.mockinterview.entity.QuestionBank qb : dbQuestions) {
+            if (seen.contains(qb.getQuestionText())) continue;
             
-            String text = fb.getKey();
-            if (TextSimilarity.isDuplicate(text, seen, DEDUP_THRESHOLD)) continue;
+            Question q = new Question();
+            q.setInterview(interview);
+            q.setQuestionText(qb.getQuestionText());
+            q.setType(qb.getCategory());
+            q.setDifficulty(difficulty);
+            q.setIsCodeQuestion(false);
+            q.setExpectedAnswer(qb.getExpectedAnswer());
+            q.setExplanation("Fallback explanation for: " + qb.getQuestionText());
+            q.setGeneratedByAI(false);
             
-            Question q = Question.builder()
-                    .interview(interview)
-                    .questionText(text)
-                    .type(fb.getValue()[0])
-                    .isCodeQuestion(Boolean.parseBoolean(fb.getValue()[1]))
-                    .generatedByAI(false)
-                    .build();
             questionRepository.save(q);
-            seen.add(TextSimilarity.normalize(text));
-            added++;
+            saved.add(q);
+            seen.add(qb.getQuestionText());
+            log.info("[QUESTION_SAVED] FALLBACK category={} difficulty={}", q.getType(), q.getDifficulty());
+            if (saved.size() >= needed) break;
+        }
+        
+        // If still lacking, try hybrid pulling anything available for this role
+        if (saved.size() < needed) {
+            int remaining = needed - saved.size();
+            List<com.mockinterview.entity.QuestionBank> fallbackHybrid = questionBankRepository.findRandomQuestions(role, difficulty, "technical", remaining);
+            for (com.mockinterview.entity.QuestionBank qb : fallbackHybrid) {
+                if (seen.contains(qb.getQuestionText())) continue;
+                
+                Question q = new Question();
+                q.setInterview(interview);
+                q.setQuestionText(qb.getQuestionText());
+                q.setType(qb.getCategory());
+                q.setDifficulty(difficulty);
+                q.setIsCodeQuestion(false);
+                q.setExpectedAnswer(qb.getExpectedAnswer());
+                q.setExplanation("Fallback explanation for: " + qb.getQuestionText());
+                q.setGeneratedByAI(false);
+                
+                questionRepository.save(q);
+                saved.add(q);
+                seen.add(qb.getQuestionText());
+                if (saved.size() >= needed) break;
+            }
         }
     }
 
     /**
      * Phase 5: Adds N coding questions to the accepted list when the AI didn't generate
-     * enough. Uses pre-defined challenges covering common algorithm patterns.
+     * enough. Delegates to {@link LocalCodingQuestionProvider} so CODING mode never
+     * degrades into MCQ / behavioral questions.
      */
-    private static final Object[][] CODING_FALLBACK_PROBLEMS = {
-        {
-            "Write a function to find the two numbers in an array that sum to a target value.",
-            "Two Sum",
-            "Given an array of integers nums and an integer target, return the indices of the two numbers that add up to target. You may assume exactly one solution exists and you may not use the same element twice.",
-            "nums = [2, 7, 11, 15], target = 9",
-            "[0, 1]  (because nums[0] + nums[1] = 2 + 7 = 9)",
-            "2 <= nums.length <= 10^4\n-10^9 <= nums[i] <= 10^9\nExactly one valid answer exists.",
-            "function twoSum(nums, target) {\n  // Your solution here\n}",
-            "Array, Hash Map",
-            "O(n)"
-        },
-        {
-            "Implement a function that reverses a linked list iteratively.",
-            "Reverse Linked List",
-            "Given the head of a singly linked list, reverse the list and return the reversed list. The list node has two properties: val (integer) and next (pointer to next node or null).",
-            "head = [1, 2, 3, 4, 5]",
-            "[5, 4, 3, 2, 1]",
-            "The number of nodes is in range [0, 5000]\n-5000 <= Node.val <= 5000",
-            "function reverseList(head) {\n  // Your solution here\n}",
-            "Linked List, Iteration",
-            "O(n)"
-        },
-        {
-            "Write a function to determine if a string is a valid palindrome, ignoring non-alphanumeric characters and case.",
-            "Valid Palindrome",
-            "A phrase is a palindrome if, after converting all uppercase letters to lowercase and removing all non-alphanumeric characters, it reads the same forward and backward. Given a string s, return true if it is a palindrome, or false otherwise.",
-            "s = \"A man, a plan, a canal: Panama\"",
-            "true",
-            "1 <= s.length <= 2 * 10^5\ns consists only of printable ASCII characters.",
-            "function isPalindrome(s) {\n  // Your solution here\n}",
-            "String, Two Pointers",
-            "O(n)"
-        },
-        {
-            "Given a binary tree, write a function to find its maximum depth.",
-            "Maximum Depth of Binary Tree",
-            "Given the root of a binary tree, return its maximum depth. Maximum depth is the number of nodes along the longest path from the root node down to the farthest leaf node.",
-            "root = [3, 9, 20, null, null, 15, 7]",
-            "3",
-            "The number of nodes is in [0, 10^4]\n-100 <= Node.val <= 100",
-            "function maxDepth(root) {\n  // Your solution here\n}",
-            "Tree, DFS, BFS",
-            "O(n)"
-        },
-        {
-            "Find the length of the longest substring without repeating characters.",
-            "Longest Substring Without Repeating Characters",
-            "Given a string s, find the length of the longest substring without repeating characters. A substring is a contiguous sequence of characters within the string.",
-            "s = \"abcabcbb\"",
-            "3  (the substring 'abc' has length 3)",
-            "0 <= s.length <= 5 * 10^4\ns consists of English letters, digits, symbols and spaces.",
-            "function lengthOfLongestSubstring(s) {\n  // Your solution here\n}",
-            "Hash Map, Sliding Window",
-            "O(n)"
-        }
-    };
 
     private void addFallbackCodingQuestions(Interview interview, List<Question> accepted,
                                              int needed, String role, String difficulty,
                                              Set<String> seen, String defaultLanguage) {
         String lang = defaultLanguage != null ? defaultLanguage : "javascript";
         int added = 0;
-        for (Object[] fb : CODING_FALLBACK_PROBLEMS) {
-            if (added >= needed) break;
-            String text = (String) fb[0];
-            if (TextSimilarity.isDuplicate(text, seen, DEDUP_THRESHOLD)) continue;
-            Question q = Question.builder()
-                    .interview(interview)
-                    .questionText(text)
-                    .title((String) fb[1])
-                    .problemDescription((String) fb[2])
-                    .exampleInput((String) fb[3])
-                    .exampleOutput((String) fb[4])
-                    .constraints((String) fb[5])
-                    .starterCode((String) fb[6])
-                    .tags((String) fb[7])
-                    .timeComplexity((String) fb[8])
-                    .type("coding")
-                    .isCodeQuestion(true)
-                    .codeType("write")
-                    .codeLanguage(lang)
-                    .difficulty(difficulty)
-                    .generatedByAI(false)
-                    .build();
-            accepted.add(q);
-            seen.add(TextSimilarity.normalize(text));
+        while (added < needed) {
+            Question cq = localCodingQuestionProvider.buildQuestion(interview, difficulty, lang, seen);
+            if (cq == null) break; // pool exhausted
+            accepted.add(cq);
             added++;
         }
     }

@@ -385,6 +385,7 @@ function DashboardPage() {
                         <th>Date</th>
                         <th>Role</th>
                         <th>Difficulty</th>
+                        <th>Source</th>
                         <th>Score</th>
                       </tr>
                     </thead>
@@ -400,6 +401,17 @@ function DashboardPage() {
                           <td>{h.date}</td>
                           <td>{h.type || '—'}</td>
                           <td>{h.difficulty || '—'}</td>
+                          <td>
+                            {h.fallbackActivated ? (
+                              <span className="dash-history-badge error-badge" title={`Provider Failed: ${h.aiProviderUsed} - ${h.providerError}`}>
+                                ⚠️ Fallback
+                              </span>
+                            ) : (
+                              <span className="dash-history-badge success-badge">
+                                🤖 AI
+                              </span>
+                            )}
+                          </td>
                           <td>
                             <span className="dash-history-score" style={{ color: scoreColor(h.score) }}>
                               {h.score != null ? h.score.toFixed(1) : '—'}

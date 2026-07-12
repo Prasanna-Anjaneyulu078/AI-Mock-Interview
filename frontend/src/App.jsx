@@ -9,11 +9,15 @@ import FeedbackPage from './pages/FeedbackPage';
 import HistoryPage from './pages/HistoryPage';
 import DashboardPage from './pages/DashboardPage';
 import CodingIDEPage from './pages/CodingIDEPage';
+import { NotificationProvider } from './components/NotificationProvider';
+import NotificationPortal from './components/NotificationPortal';
 
 function App() {
   return (
-    <div className="app-shell">
-      <Routes>
+    <NotificationProvider>
+      <div className="app-shell">
+        <NotificationPortal />
+        <Routes>
         <Route path="/login" element={<LoginPage />} />
 
         <Route
@@ -21,7 +25,9 @@ function App() {
           element={
             <ProtectedRoute>
               <Navbar />
-              <HomePage />
+              <main className="app-main">
+                <HomePage />
+              </main>
             </ProtectedRoute>
           }
         />
@@ -30,7 +36,9 @@ function App() {
           element={
             <ProtectedRoute>
               <Navbar />
-              <InterviewSetupPage />
+              <main className="app-main">
+                <InterviewSetupPage />
+              </main>
             </ProtectedRoute>
           }
         />
@@ -39,7 +47,9 @@ function App() {
           element={
             <ProtectedRoute>
               <Navbar />
-              <InterviewPage />
+              <main className="app-main">
+                <InterviewPage />
+              </main>
             </ProtectedRoute>
           }
         />
@@ -48,7 +58,9 @@ function App() {
           element={
             <ProtectedRoute>
               <Navbar />
-              <CodingIDEPage />
+              <main className="app-main">
+                <CodingIDEPage />
+              </main>
             </ProtectedRoute>
           }
         />
@@ -57,7 +69,9 @@ function App() {
           element={
             <ProtectedRoute>
               <Navbar />
-              <FeedbackPage />
+              <main className="app-main">
+                <FeedbackPage />
+              </main>
             </ProtectedRoute>
           }
         />
@@ -66,7 +80,9 @@ function App() {
           element={
             <ProtectedRoute>
               <Navbar />
-              <HistoryPage />
+              <main className="app-main">
+                <HistoryPage />
+              </main>
             </ProtectedRoute>
           }
         />
@@ -75,14 +91,17 @@ function App() {
           element={
             <ProtectedRoute>
               <Navbar />
-              <DashboardPage />
+              <main className="app-main">
+                <DashboardPage />
+              </main>
             </ProtectedRoute>
           }
         />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </div>
+      </div>
+    </NotificationProvider>
   );
 }
 

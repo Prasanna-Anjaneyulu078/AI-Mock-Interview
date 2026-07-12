@@ -4,6 +4,13 @@ spring:
     driverClassName: org.h2.Driver
     username: sa
     password: password
+  # The bundled Flyway migrations (V2+) ALTER tables that are created by Hibernate
+  # (ddl-auto: create-drop) from the JPA entities, but Flyway runs before Hibernate
+  # and therefore fails in the in-memory H2 test DB ("RESUMES table not found").
+  # Disable Flyway for the test profile so the schema is built from the entities;
+  # this only affects tests and leaves production Flyway behavior untouched.
+  flyway:
+    enabled: false
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:

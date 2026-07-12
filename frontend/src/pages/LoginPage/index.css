@@ -188,6 +188,37 @@
   box-shadow: 0 0 0 2px var(--accent-light);
 }
 
+/* Password Toggle styling */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper .login-input {
+  width: 100%;
+  padding-right: 40px; /* space for the eye icon */
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: color 0.2s;
+}
+
+.password-toggle-btn:hover {
+  color: var(--accent-color);
+}
+
 /* Submit button */
 .login-submit {
   width: 100%;
@@ -289,5 +320,33 @@
   .login-hero-features {
     flex-direction: column;
     align-items: center;
+  }
+}
+
+/* ============================================================
+   DESKTOP (>=1024px): fit inside 100vh, center the card.
+   Login is rendered directly under .app-shell (public route),
+   so it is sized by `.app-shell > .login-page` in App.css.
+   ============================================================ */
+@media (min-width: 1024px) {
+  .login-page {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Vertically center the hero + form card region within the viewport */
+  .login-hero {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .login-form-wrapper {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 }

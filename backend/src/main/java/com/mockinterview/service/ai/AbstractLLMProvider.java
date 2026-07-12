@@ -3,7 +3,6 @@ package com.mockinterview.service.ai;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -17,20 +16,8 @@ public abstract class AbstractLLMProvider implements AIProvider {
 
     protected abstract String generateContent(String prompt);
 
-    private static final List<Map.Entry<String, String>> ROLE_FOCUS = List.of(
-            Map.entry("java", "Core Java, OOP, Collections, Concurrency, Spring Boot, Microservices, Security."),
-            Map.entry("react", "React.js, Hooks, Component design, State Management, Performance, Accessibility."),
-            Map.entry("full stack", "Frontend, Backend APIs, Database Design, REST/GraphQL, Auth."),
-            Map.entry("frontend", "HTML/CSS, JS/TS, Frameworks, State Management, Web Perf, a11y."),
-            Map.entry("backend", "Server logic, REST API design, Databases/ORM, Auth, Caching, Queues."),
-            Map.entry("python", "Python, Stdlib, Django/Flask/FastAPI, Scripting, Data structures."),
-            Map.entry("data scientist", "Statistics, ML, Data Analysis, Feature Engineering, Model Eval."),
-            Map.entry("data", "SQL, Python/R, Visualization, Statistics, Analytics."),
-            Map.entry("devops", "CI/CD, Docker & Kubernetes, Cloud, IaC, Monitoring."),
-            Map.entry("ai", "ML, Deep Learning, LLMs, RAG, Vector DBs, Deployment."),
-            Map.entry("ml", "ML, Deep Learning, LLMs, RAG, Vector DBs, Deployment."),
-            Map.entry("machine learning", "ML, Deep Learning, LLMs, RAG, Vector DBs, Deployment.")
-    );
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.mockinterview.repository.RoleMetadataRepository roleMetadataRepository;
 
     private static final Map<String, String> LEVEL_STYLE = Map.of(
             "BEGINNER", "Style: short, direct recall/understanding questions.",
@@ -38,20 +25,18 @@ public abstract class AbstractLLMProvider implements AIProvider {
             "ADVANCED", "Style: open-ended design and trade-off discussions."
     );
 
-    private static String resolveRoleFocus(String role) {
+    private String resolveRoleFocus(String role) {
         if (role == null) return null;
-        String r = role.toLowerCase();
-        for (var e : ROLE_FOCUS) {
-            if (r.contains(e.getKey())) return e.getValue();
-        }
-        return null;
+        return roleMetadataRepository.findByRoleName(role.toUpperCase().replace(" ", "_"))
+            .map(com.mockinterview.entity.RoleMetadata::getTopicsJson)
+            .orElse(null);
     }
 
     @Override
-    public String generateQuestions(String role, String resumeContext, String guidance, String levelDifficulty,
+    public String generateQuestions(String interviewMode, String role, String resumeContext, String guidance, String levelDifficulty,
                                     int hr, int tech, int proj, int codeCount, int interestCount, String selectedInterests, int count, String avoidList) {
         StringBuilder sb = new StringBuilder();
-        sb.append("You are an expert technical interviewer for a ")
+        sb.append("You are InterviewIQ AI, an expert technical interviewer for a ")
           .append(role != null ? role : "Software").append(" candidate at the ")
           .append(levelDifficulty).append(" difficulty level.\n\n");
         sb.append("DIFFICULTY GUIDANCE (").append(levelDifficulty).append("):\n").append(guidance).append("\n");
@@ -64,6 +49,45 @@ public abstract class AbstractLLMProvider implements AIProvider {
         if (avoidList != null && !avoidList.isBlank()) {
             sb.append("DO NOT repeat these questions already used: ").append(avoidList).append("\n\n");
         }
+        
+        // Strict Interview Mode Enforcement
+        if (interviewMode != null) {
+            // Normalize legacy aliases so the prompt wording is consistent.
+            String effectiveMode = interviewMode;
+            switch (interviewMode) {
+                case "CODING_INTERVIEW": effectiveMode = "CODING"; break;
+                case "RESUME":           effectiveMode = "RESUME_BASED"; break;
+                case "HR":               effectiveMode = "BEHAVIORAL"; break;
+                default: break;
+            }
+            sb.append("STRICT INTERVIEW MODE (").append(effectiveMode).append("): ");
+            switch (effectiveMode) {
+                case "CODING":
+                    sb.append("ONLY generate coding/algorithm problems. DO NOT generate MCQ (multiple-choice) questions, behavioral, HR, resume, or generic technical questions. Every question must be a coding challenge.\n\n");
+                    break;
+                case "TECHNICAL":
+                    sb.append("ONLY generate technical conceptual/knowledge questions. DO NOT generate coding challenges, behavioral, or HR questions.\n\n");
+                    break;
+                case "BEHAVIORAL":
+                    sb.append("ONLY generate behavioral (STAR format, leadership, teamwork) questions. DO NOT generate coding or technical questions.\n\n");
+                    break;
+                case "RESUME_BASED":
+                    sb.append("ONLY generate questions referencing the candidate's resume (projects, skills, experience). DO NOT generate random coding or generic behavioral questions.\n\n");
+                    break;
+                case "HR":
+                    sb.append("ONLY generate HR questions (strengths, weaknesses, career goals, fit). DO NOT generate coding or technical questions.\n\n");
+                    break;
+                case "PROJECT":
+                    sb.append("ONLY generate questions about the candidate's projects (architecture, design decisions, challenges). DO NOT generate generic HR or behavioral questions.\n\n");
+                    break;
+
+                case "MIXED":
+                default:
+                    sb.append("Generate a balanced mix of questions as requested by the counts below.\n\n");
+                    break;
+            }
+        }
+
         sb.append("RULES:\n");
         sb.append("1. Return ONLY a raw JSON array. No markdown, no prose.\n");
         sb.append("2. Generate exactly ").append(hr).append(" behavioral/HR questions (category: \"behavioral\").\n");
@@ -82,13 +106,27 @@ public abstract class AbstractLLMProvider implements AIProvider {
         sb.append("   \"exampleInput\" (concrete input example as a string),\n");
         sb.append("   \"exampleOutput\" (expected output for that input),\n");
         sb.append("   \"constraints\" (1-3 bullet constraints e.g. \"1 <= n <= 10^4, -10^9 <= nums[i] <= 10^9\"),\n");
-        sb.append("   \"starterCode\" (function signature in ").append(role != null && role.toLowerCase().contains("python") ? "python" : "javascript").append("),\n");
+        sb.append("   \"starterCode\" (ONLY the method signature with an empty body stub — NO implementation. Example: `function twoSum(nums, target) { // Write your code here }`),\n");
+        sb.append("   \"solutionCode\" (full correct implementation — stored server-side for evaluation only, never shown to candidate),\n");
         sb.append("   \"tags\" (comma-separated topic tags e.g. \"Array, Hash Map\"),\n");
         sb.append("   \"timeComplexity\" (expected optimal e.g. \"O(n)\"),\n");
-        sb.append("   \"idealAnswer\" (brief model solution explanation),\n");
+        sb.append("   \"idealAnswer\" (1-2 sentence explanation of the optimal approach — NOT code),\n");
         sb.append("   \"codeType\": \"write\",\n");
         sb.append("   \"testCases\" (array of 3-5 cases: [{\"input\":\"\",\"expectedOutput\":\"\",\"hidden\":false/true}]).\n");
+        sb.append("   IMPORTANT: starterCode must contain ONLY the empty function signature. If it contains any real logic it will be rejected.\n");
         sb.append("9. Reference the candidate's actual skills/projects.\n");
+        // CODING mode: hard guarantee that EVERY element is a coding problem.
+        if ("CODING".equals(interviewMode)) {
+            sb.append("10. CRITICAL (CODING MODE): Every single element in the JSON array MUST be a coding problem. ")
+              .append("You are InterviewIQ AI, a senior technical interviewer. Generate ONLY coding interview problems. ")
+              .append("DO NOT generate MCQ questions, behavioral questions, HR questions, or resume questions. ")
+              .append("Each problem MUST contain: a problem title, difficulty, a description, constraints, ")
+              .append("an input format, an output format, examples, hidden test cases, and a starter method signature. ")
+              .append("Every element MUST have \"category\": \"coding\" and \"isCodeQuestion\": true, plus ")
+              .append("title, problemDescription, exampleInput, exampleOutput, constraints, starterCode, and testCases. ")
+              .append("Return only coding challenges. ")
+              .append("DO NOT return any behavioral, HR, resume, project, or generic technical (non-coding) questions.\n");
+        }
         sb.append("Generate exactly ").append(count).append(" questions now:");
         return generateContent(sb.toString());
     }
@@ -105,7 +143,7 @@ public abstract class AbstractLLMProvider implements AIProvider {
     @Override
     public String generateFollowUp(String question, String answer, String role, String difficulty, String resumeContext) {
         StringBuilder sb = new StringBuilder();
-        sb.append("You are a real, adaptive technical interviewer continuing a LIVE conversation.\n\n");
+        sb.append("You are InterviewIQ AI, a real, adaptive technical interviewer continuing a LIVE conversation.\n\n");
         sb.append("ORIGINAL QUESTION: ").append(question).append("\n\n");
         sb.append("CANDIDATE'S ANSWER: ").append(answer).append("\n\n");
         if (role != null) sb.append("TARGET ROLE: ").append(role).append("\n\n");
@@ -129,7 +167,7 @@ public abstract class AbstractLLMProvider implements AIProvider {
     @Override
     public String evaluateAnswer(String question, String answer, String requestJson, String judge0Result) {
         StringBuilder sb = new StringBuilder();
-        sb.append("You are an expert technical interviewer evaluating a candidate's answer.\n\n");
+        sb.append("You are InterviewIQ AI, an expert technical interviewer evaluating a candidate's answer.\n\n");
         sb.append("QUESTION:\n").append(question).append("\n\n");
         
         if (judge0Result != null && !judge0Result.isBlank()) {

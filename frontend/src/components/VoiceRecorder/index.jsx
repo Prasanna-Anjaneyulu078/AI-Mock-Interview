@@ -5,13 +5,19 @@ import './index.css';
 
 const MAX_RECORD_TIME = 300;
 
-function VoiceRecorder({ onRecordingComplete, disabled, autoStart, onRecordingStart, onRecordingStop }) {
+function VoiceRecorder({ onRecordingComplete, disabled, autoStart, onRecordingStart, onRecordingStop, forceStop }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [recordedBlob, setRecordedBlob] = useState(null);
   const [audioPreviewUrl, setAudioPreviewUrl] = useState(null);
   const [hasAutoStarted, setHasAutoStarted] = useState(false);
+
+  useEffect(() => {
+    if (forceStop && isRecording) {
+      stopRecording();
+    }
+  }, [forceStop, isRecording]);
 
 useEffect(() => {
   let timerId = null;
@@ -51,6 +57,15 @@ useEffect(() => {
   }, [mediaRecorder, audioPreviewUrl]);
 
   useEffect(() => {
+    if (disabled) {
+      console.log("[RECORDING_DISABLED]");
+      if (isRecording) {
+        stopRecording();
+      }
+    } else {
+      console.log("[RECORDING_ENABLED]");
+    }
+    
     if (autoStart && !disabled && !isRecording && !hasAutoStarted && !recordedBlob) {
       setHasAutoStarted(true);
       startRecording();

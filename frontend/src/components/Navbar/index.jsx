@@ -2,14 +2,14 @@ import { useState, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../hooks/useTheme.js';
-import { BsCameraVideo, BsList, BsX, BsMoonFill, BsSunFill, BsDisplay } from 'react-icons/bs';
+import { BsCameraVideo, BsList, BsX, BsMoonFill, BsSunFill } from 'react-icons/bs';
 import { MdDashboard, MdHistory, MdLogout } from 'react-icons/md';
 import { FaUser } from 'react-icons/fa';
 import './index.css';
 
 function Navbar() {
   const { user, logout } = useContext(AuthContext);
-  const { theme, toggleTheme, getActiveTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -25,9 +25,7 @@ function Navbar() {
   };
 
   const renderThemeIcon = () => {
-    if (theme === 'light') return <BsSunFill className="theme-icon" />;
-    if (theme === 'dark') return <BsMoonFill className="theme-icon" />;
-    return <BsDisplay className="theme-icon" />;
+    return theme === 'dark' ? <BsMoonFill className="theme-icon" /> : <BsSunFill className="theme-icon" />;
   };
 
   return (
@@ -35,7 +33,7 @@ function Navbar() {
       <div className="navbar-left">
         <Link to="/" className="navbar-brand" onClick={handleNavClick}>
           <BsCameraVideo className="brand-icon" />
-          <span className="brand-text">AI Mock Interview</span>
+          <span className="brand-text">InterviewIQ AI</span>
         </Link>
         <div className="nav-links">
           <Link
@@ -101,7 +99,7 @@ function Navbar() {
           
           <button className="mobile-theme-toggle" onClick={toggleTheme}>
             {renderThemeIcon()}
-            <span>Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
+            <span>Theme: {theme === 'dark' ? 'Dark' : 'Light'}</span>
           </button>
 
           {user && (

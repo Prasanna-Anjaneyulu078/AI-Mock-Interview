@@ -367,3 +367,35 @@
     grid-template-columns: 1fr;
   }
 }
+
+.dash-history-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dash-history-badge.success-badge {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.dash-history-badge.error-badge {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  cursor: help;
+}
+
+/* ============================================================
+   DESKTOP (>=1024px): fill the app shell, scroll internally.
+   Replaces the old min-height:100vh that caused page overflow.
+   ============================================================ */
+@media (min-width: 1024px) {
+  .dashboard-page {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}

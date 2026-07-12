@@ -289,3 +289,15 @@
     justify-content: center;
   }
 }
+
+/* ============================================================
+   DESKTOP (>=1024px): charts scroll inside the content area;
+   the whole page must not exceed the viewport height.
+   ============================================================ */
+@media (min-width: 1024px) {
+  .feedback-page {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}

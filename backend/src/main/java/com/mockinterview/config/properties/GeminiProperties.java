@@ -1,6 +1,7 @@
 package com.mockinterview.config.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -8,6 +9,7 @@ import org.springframework.validation.annotation.Validated;
  * {@link com.mockinterview.service.GeminiService} disables itself gracefully and the
  * interview falls back to static questions rather than crashing.
  */
+@Component
 @ConfigurationProperties(prefix = "app.ai.gemini")
 @Validated
 public class GeminiProperties {
